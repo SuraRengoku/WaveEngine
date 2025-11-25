@@ -27,6 +27,7 @@ Key goals:
 ⏳ PBR rendering pipeline  
 ⏳ Real-time shadow mapping  
 ⏳ Scene editor integration  
+......
 
 ---
 
@@ -44,10 +45,10 @@ WaveEngine/
 ```
 
 ## Building and launching requirements
-· Windows10 / 11
-· Visual Studio 2022
-· C++17 or later
-· Microsoft Graphics Tools / RenderDoc
+· Windows10 / 11  
+· Visual Studio 2022  
+· C++17 or later  
+· Microsoft Graphics Tools / RenderDoc  
 · Direct 12 (D11 / Vulkan / OpenGL will be supported later!)
 
 ## Author
