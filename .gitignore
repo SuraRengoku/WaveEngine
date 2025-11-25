@@ -1,0 +1,30 @@
+# Visual Studio
+.vs/
+
+# Build output
+x64/
+Debug/
+Release/
+bin/
+obj/
+
+# VS temp files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# Intermediate files
+*.obj
+*.ipch
+*.pch
+*.pdb
+*.idb
+*.ilk
+*.exp
+
+# System garbages
+Thumbs.db
+.DS_Store

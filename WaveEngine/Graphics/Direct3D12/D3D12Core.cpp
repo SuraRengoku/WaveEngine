@@ -1,0 +1,477 @@
+#include "D3D12Core.h"
+#include "D3D12Surface.h"
+
+using namespace Microsoft::WRL;
+
+namespace WAVEENGINE::GRAPHICS::D3D12::CORE {
+
+namespace {
+
+class d3d12Command {
+public:
+	d3d12Command() = default;
+
+	DISABLE_COPY_AND_MOVE(d3d12Command);
+
+	explicit d3d12Command(ID3D12Device8* const device, D3D12_COMMAND_LIST_TYPE type) {
+		HRESULT hr{ S_OK };
+		D3D12_COMMAND_QUEUE_DESC desc{};
+		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		desc.NodeMask = 0; // commands on which GPU node? default 0
+		desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL; // NORMAL -> HIGH -> REALTIME
+		desc.Type = type;
+
+		DXCall(hr = device->CreateCommandQueue(&desc, IID_PPV_ARGS(&_cmd_queue)));
+		if (FAILED(hr))	goto _error;
+		NAME_D3D12_OBJECT(_cmd_queue,
+			type == D3D12_COMMAND_LIST_TYPE_DIRECT ?
+			L"GFX Command Queue" :
+			type == D3D12_COMMAND_LIST_TYPE_COMPUTE ?
+			L"Compute Command Queue" : L"Command Queue");
+
+		for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
+			command_frame& frame{ _cmd_frames[i] };
+			DXCall(hr = device->CreateCommandAllocator(type, IID_PPV_ARGS(&frame.cmd_allocator)));
+			if (FAILED(hr)) goto _error;
+			NAME_D3D12_OBJECT_INDEXED(frame.cmd_allocator, i, 
+				type == D3D12_COMMAND_LIST_TYPE_DIRECT ?
+				L"GFX Command Allocator" :
+				type == D3D12_COMMAND_LIST_TYPE_COMPUTE ?
+				L"Compute Command Allocator" : L"Command Allocator");
+		}
+
+		DXCall(hr = device->CreateCommandList(0, type, _cmd_frames[0].cmd_allocator, nullptr, IID_PPV_ARGS(&_cmd_list)));
+		if (FAILED(hr)) goto _error;
+		DXCall(_cmd_list->Close());
+		NAME_D3D12_OBJECT(_cmd_list,
+			type == D3D12_COMMAND_LIST_TYPE_DIRECT ?
+			L"GFX Command List" :
+			type == D3D12_COMMAND_LIST_TYPE_COMPUTE ?
+			L"Compute Command List" : L"Command List");
+
+		DXCall(hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
+		if (FAILED(hr))	goto _error;
+		NAME_D3D12_OBJECT(_fence, L"D3D12 Fence");
+
+		_fence_event = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+		assert(_fence_event);
+
+		return;
+		
+	_error:
+		release();
+	}
+
+	~d3d12Command() {
+		assert(!_cmd_queue && !_cmd_list && !_fence);
+	}
+
+	// wait for the current frame to be signalled and reset the command list/allocator
+	void begin_frame() {
+		command_frame& frame{ _cmd_frames[_frame_index] };
+		// fence value <= completed value -> continue
+		// fence value > completed value -> WAIT
+		frame.wait(_fence_event, _fence);
+		
+		// resetting the command allocator will free the memory used by previously recorded commands
+		DXCall(frame.cmd_allocator->Reset()); 
+		// resetting the command list will reopen it for recording new commands
+		DXCall(_cmd_list->Reset(frame.cmd_allocator, nullptr));
+	}
+
+	// signal the fence with new fence value
+	void end_frame() {
+		DXCall(_cmd_list->Close());
+		ID3D12CommandList* const cmd_lists[]{ _cmd_list };
+		_cmd_queue->ExecuteCommandLists(_countof(cmd_lists), &cmd_lists[0]);
+
+		u64& fence_value{ _fence_value };
+		++fence_value;
+		command_frame& frame{ _cmd_frames[_frame_index] };
+		frame.fence_value = fence_value;
+		_cmd_queue->Signal(_fence, fence_value); // update completed value as fence_value after GPU finished former commands
+
+		_frame_index = (_frame_index + 1) % frame_buffer_count;
+	}
+
+	void flush() {
+		for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
+			_cmd_frames[i].wait(_fence_event, _fence);
+		}
+		_frame_index = 0;
+	}
+
+	void release() {
+		flush(); // let GPU finish all its work
+
+		CORE::release(_fence);
+		_fence_value = 0;
+
+		CloseHandle(_fence_event);
+		_fence_event = nullptr;
+
+		CORE::release(_cmd_queue);
+		CORE::release(_cmd_list);
+		
+		for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
+			_cmd_frames[i].release();
+		}
+
+	}
+
+	constexpr ID3D12CommandQueue* const command_queue() const { return _cmd_queue; }
+	constexpr ID3D12GraphicsCommandList6* const command_list() const { return _cmd_list; }
+	constexpr u32 frame_index() const { return _frame_index; }
+
+private:
+	struct command_frame {
+		ID3D12CommandAllocator* cmd_allocator{ nullptr };
+		u64						fence_value{ 0 };
+
+		// wait for the GPU to finish the current frame
+		void wait(HANDLE fence_event, ID3D12Fence1* fence) {
+			assert(fence && fence_event);
+			// if the current fence value is still less than "fence_value"
+			// then we know the GPU has not finished executing the command lists
+			// since it has not reached the "_cmd_queue->Signal()" command
+			if (fence->GetCompletedValue() < fence_value) {
+				// We have the fence create an event which is signaled one the fence's current value equals "fence_value"
+				DXCall(fence->SetEventOnCompletion(fence_value, fence_event)); // lauch fence_event until fence reaches fence_value
+				// Wait until the fence has triggered the event that its current value has reached "fence_value"
+				// indicating that command queue has finished executing.
+				WaitForSingleObject(fence_event, INFINITE); // suspend CPU until fence_event
+			}
+		}
+
+		void release() {
+			CORE::release(cmd_allocator);
+			fence_value = 0;
+		}
+	};
+	
+	ID3D12CommandQueue*         _cmd_queue{ nullptr }; // for GPU
+	ID3D12GraphicsCommandList6* _cmd_list{ nullptr }; // for CPU
+	ID3D12Fence1*				_fence{ nullptr };
+	u64							_fence_value{ 0 };
+	HANDLE						_fence_event{ nullptr };
+	command_frame				_cmd_frames[frame_buffer_count]{};
+	u32							_frame_index{ 0 };
+};
+
+using surfaceCollection = UTL::freeList<d3d12Surface>;
+
+ID3D12Device8*				main_device{ nullptr }; // latest for windows 10
+IDXGIFactory7*				dxgi_factory{ nullptr };
+d3d12Command				gfx_command;
+surfaceCollection			surfaces;
+
+descriptorHeap				rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
+descriptorHeap				dsv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
+descriptorHeap				srv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+descriptorHeap				uav_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+
+//// Inheritance Relation ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//					 IUnknown
+//						|
+//		+---------------+---------------+
+//		|								|
+//	ID3D12Object                IDXGIObject
+//	|                           |
+//	+--ID3D12Device				+--IDXGISwapChain
+//	+--ID3D12Resource			+--IDXGIAdapter
+//	+--ID3D12CommandQueue		+--IDXGIFactory
+//	+--ID3D12CommandList
+//	+-- ...
+//
+//// all these types can be converted into IUnknown
+//// all these types can use Release() method
+
+UTL::vector<IUnknown*>		deferred_releases[frame_buffer_count]{};
+u32							deferred_releases_flag[frame_buffer_count];
+std::mutex					deferred_releases_mutex{};
+
+constexpr DXGI_FORMAT render_target_format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB };
+constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
+
+/// <summary>
+/// Finds and returns the first high-performance IDXGIAdapter4 that supports the configured minimum D3D12 feature level.
+/// </summary>
+/// <returns>A pointer to an IDXGIAdapter4 that supports the required feature level and is enumerated with high-performance preference, 
+/// or nullptr if no suitable adapter is found. The returned adapter has a live COM reference (ownership is transferred to the caller), 
+/// so the caller is responsible for calling Release when finished. 
+/// Note: the function enumerates adapters via the global dxgi_factory and tests each adapter with D3D12CreateDevice; 
+/// adapters that are not selected are released internally.</returns>
+IDXGIAdapter4* determine_main_adapter() {
+	IDXGIAdapter4* adapter{ nullptr };
+
+	// get adapters in descending order of performance
+	for (u32 i{ 0 };
+		dxgi_factory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
+		++i) {
+		// pick the first adapter supports the minimum feature level.
+		if (SUCCEEDED(D3D12CreateDevice(adapter, minimum_feature_level, __uuidof(ID3D12Device), nullptr))) {
+			return adapter;
+		}
+		release(adapter);
+	}
+	return nullptr;
+}
+
+D3D_FEATURE_LEVEL get_max_feature_level(IDXGIAdapter4* adapter) {
+	constexpr D3D_FEATURE_LEVEL feature_levels[4]{
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_12_0,
+		D3D_FEATURE_LEVEL_12_1
+	};
+
+	D3D12_FEATURE_DATA_FEATURE_LEVELS feature_level_info{};
+	feature_level_info.NumFeatureLevels = _countof(feature_levels);
+	feature_level_info.pFeatureLevelsRequested = feature_levels;
+
+	ComPtr<ID3D12Device> device;
+	DXCall(D3D12CreateDevice(adapter, minimum_feature_level, IID_PPV_ARGS(&device)));
+	DXCall(device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &feature_level_info, sizeof(feature_level_info)));
+	return feature_level_info.MaxSupportedFeatureLevel;
+}
+
+bool failed_init() {
+	shutdown();
+	return false;
+}
+
+void __declspec(noinline) process_deferred_releases(u32 frame_idx) {
+	std::lock_guard lock{ deferred_releases_mutex };
+	
+	// TODO: maybe set the flag in the end will not cause problem?
+	// clear the flag in the beginning but not the end.
+	// if we clear it at the end then it might be overwritten by some other thread that was trying to set it.
+	// it's fine if overwriting happens before processing the items.
+	deferred_releases_flag[frame_idx] = 0; 
+	
+	rtv_desc_heap.process_deferred_free(frame_idx);
+	dsv_desc_heap.process_deferred_free(frame_idx);
+	srv_desc_heap.process_deferred_free(frame_idx);
+	uav_desc_heap.process_deferred_free(frame_idx);
+	
+	UTL::vector<IUnknown*> resources{ deferred_releases[frame_idx] };
+	if (!resources.empty()) {
+		for (auto& resource : resources) release(resource);
+		resources.clear();
+	}
+
+}
+
+} // anonymous namespace
+
+
+namespace DETAIL {
+
+void deferred_release(IUnknown* resource) {
+	const u32 frame_idx{ current_frame_index() };
+	std::lock_guard lock{ deferred_releases_mutex };
+	deferred_releases[frame_idx].push_back(resource);
+	set_deferred_releases_flag(); // resources for current frame need to be deferred release
+}
+
+} // DETAIL
+
+
+bool initialize() {
+
+	if (main_device) shutdown();
+
+	u32 dxgi_factory_flags = 0;
+#ifdef _DEBUG
+	// Enable debugging layer. Requires "Graphics Tools" optional feature
+	{
+		ComPtr<ID3D12Debug3> debug_interface;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_interface)))) {
+			debug_interface->EnableDebugLayer();
+		}
+		else {
+			OutputDebugStringA("Warning: D3D12 Debug interface is not available, Verify that Graphics Tools optional feature is installed in this device.\n");
+		}
+
+		dxgi_factory_flags |= DXGI_CREATE_FACTORY_DEBUG;
+	}
+#endif // _DEBUG
+
+	HRESULT hr{ S_OK };
+	//CreateDXGIFactory2(factory_flags, __uuidof(IDXGIFactory7), (void**)&dxgi_factory); // use macro below
+	DXCall(hr = CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&dxgi_factory)));
+	if (FAILED(hr)) return failed_init();
+
+	// determine which adapter (i.e. graphics card) to use
+	ComPtr<IDXGIAdapter4> main_adpater;
+	main_adpater.Attach(determine_main_adapter());
+	if (!main_adpater) return failed_init();
+
+	// determine what is the maxmimum feature level that is supporter
+	D3D_FEATURE_LEVEL max_feature_level{ get_max_feature_level(main_adpater.Get()) };
+	assert(max_feature_level >= minimum_feature_level);
+	if (max_feature_level < minimum_feature_level) return failed_init();
+
+	// create a ID3D12Device (this is a virtual adapter)
+	DXCall(hr = D3D12CreateDevice(main_adpater.Get(), max_feature_level, IID_PPV_ARGS(&main_device)));
+	if (FAILED(hr)) return failed_init();
+
+	NAME_D3D12_OBJECT(main_device, L"Main D3D12 Device");
+
+#ifdef _DEBUG
+	{
+		ComPtr<ID3D12InfoQueue> info_queue; // only used when debug layer is enabled
+		DXCall(main_device->QueryInterface(IID_PPV_ARGS(&info_queue)));
+		info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+		info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+		info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+	}
+#endif // _DEBUG
+
+	///// DESCRIPTOR HEAPS //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	bool descriptorInitResult{ true };
+	descriptorInitResult &= rtv_desc_heap.initialize(512, false);
+	descriptorInitResult &= dsv_desc_heap.initialize(512, false);
+	descriptorInitResult &= srv_desc_heap.initialize(4096, true);
+	descriptorInitResult &= uav_desc_heap.initialize(512, false);
+	if (!descriptorInitResult) return failed_init();
+
+	NAME_D3D12_OBJECT(rtv_desc_heap.heap(), L"RTV Descriptor Heap");
+	NAME_D3D12_OBJECT(dsv_desc_heap.heap(), L"DSV Descriptor Heap");
+	NAME_D3D12_OBJECT(srv_desc_heap.heap(), L"SRV Descriptor Heap");
+	NAME_D3D12_OBJECT(uav_desc_heap.heap(), L"UAV Descriptor Heap");
+
+	//// COMMAND BUFFER /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	new (&gfx_command) d3d12Command(main_device, D3D12_COMMAND_LIST_TYPE_DIRECT); // placement new because copy and move constructor has been removed
+	if (!gfx_command.command_queue()) return failed_init();
+
+
+	return true;
+}
+
+void shutdown() {
+	gfx_command.release();
+
+	release(dxgi_factory);
+	
+	// process_deferred_releases should be called first because 
+	// some resources(i.e. swap chains) can't be released before their depending resources are released
+	for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
+		process_deferred_releases(i);
+	}
+
+	rtv_desc_heap.release();
+	dsv_desc_heap.release();
+	srv_desc_heap.release();
+	uav_desc_heap.release();
+
+	// release again because descriptorHeap.release() may introduce descriptorHeap resources to be deferredly released
+	process_deferred_releases(0);
+
+#ifdef _DEBUG
+	{
+		{
+			ComPtr<ID3D12InfoQueue> info_queue;
+			DXCall(main_device->QueryInterface(IID_PPV_ARGS(&info_queue)));
+			info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, false);
+			info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, false);
+			info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, false);
+		}
+
+		ComPtr<ID3D12DebugDevice> debug_device;
+		DXCall(main_device->QueryInterface(IID_PPV_ARGS(&debug_device)));
+		release(main_device);
+		DXCall(debug_device->ReportLiveDeviceObjects(D3D12_RLDO_SUMMARY | D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL));
+	}
+#endif // _DEBUG
+
+	release(main_device);
+}
+
+
+ID3D12Device* const device() {
+	return main_device;
+}
+
+descriptorHeap& rtv_heap() {
+	return rtv_desc_heap;
+}
+
+descriptorHeap& dsv_heap() {
+	return dsv_desc_heap;
+}
+
+descriptorHeap& srv_heap() {
+	return srv_desc_heap;
+}
+
+descriptorHeap& uav_heap() {
+	return uav_desc_heap;
+}
+
+DXGI_FORMAT default_render_target_format() {
+	return render_target_format;
+}
+
+u32 current_frame_index() {
+	return gfx_command.frame_index();
+}
+
+void set_deferred_releases_flag() {
+	deferred_releases_flag[current_frame_index()] = 1; // atomic
+}
+
+surface create_surface(PLATFORM::window window) {
+	surface_id id{ surfaces.add(window) }; // constructor only takes PLATFORM::window as input parameter
+	surfaces[id].create_swap_chain(dxgi_factory, gfx_command.command_queue(), render_target_format);
+	return surface{ id };
+}
+
+void remove_surface(surface_id id) {
+	gfx_command.flush(); // waiting GPU
+	surfaces.remove(id); 
+}
+
+void resize_surface(surface_id id, u32 width, u32 height) {
+	gfx_command.flush();
+	surfaces[id].resize();
+}
+
+u32 surface_width(surface_id id) {
+	return surfaces[id].width();
+}
+u32 surface_height(surface_id id) {
+	return surfaces[id].height();
+}
+
+void render_surface(surface_id id) {
+	// wait for the GPU to finish with the command allocator and 
+	// reset the allocator once the GPU is done with it
+	// This frees the memory that was used to store commands
+	gfx_command.begin_frame();
+
+	// last round rendering for current frame finished
+
+	// release resources in last round
+	const u32 frame_idx{ current_frame_index() };
+	if (deferred_releases_flag[frame_idx]) {
+		process_deferred_releases(frame_idx);
+	}
+
+	ID3D12GraphicsCommandList6* cmd_list{ gfx_command.command_list() };
+
+	const d3d12Surface& surface{ surfaces[id] };
+	// presenting swap chain buffers happens in lockstep with frame buffers
+	surface.present(); // switch to a new back_buffer
+
+	// Record commands
+	// ...
+
+	// Done recording commands, ready to execute commands
+	// signal and increment the fence value for next frame
+	gfx_command.end_frame();
+}
+
+}

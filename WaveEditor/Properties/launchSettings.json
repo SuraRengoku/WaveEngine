@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WaveEditor": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
