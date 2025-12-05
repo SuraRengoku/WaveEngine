@@ -254,7 +254,9 @@ namespace WaveEditor.Editors {
             Debug.Assert(asset is Content.Geometry);
             if(asset is Content.Geometry geometry) {
                 Geometry = geometry;
-                MeshRenderer = new MeshRenderer(Geometry.GetLODGroup().LODs[0], MeshRenderer);
+                var lodGroup = Geometry.GetLODGroup();
+                if(lodGroup?.LODs.Any() == true)
+                    MeshRenderer = new MeshRenderer(Geometry.GetLODGroup().LODs[0], MeshRenderer);
             }
         }
     }

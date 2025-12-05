@@ -8,6 +8,7 @@
 
 **WaveEngine** is a self-built C++ engine project aimed at exploring modern real-time rendering techniques and scalable engine architecture.  
 The project covers both core engine systems and supporting tools, designed for learning, experimentation, and long-term development.
+The **front-end Editor** is written by C# using WPF and The **back-end Engine Core** is written by C++.
 
 Key goals:
 - Modular engine architecture  

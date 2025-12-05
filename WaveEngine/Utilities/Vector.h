@@ -38,7 +38,7 @@ public:
 
 	// move-constructor. Constructs by moving another vector.
 	// the original vector will be emptied after move.
-	constexpr vector(const vector&& o) :
+	constexpr vector(vector&& o) noexcept :
 		_capacity{ o._capacity }, _size{ o._size }, _data{ o._data } {
 		o.reset();
 	}
@@ -91,19 +91,48 @@ public:
 		
 		T* const item{ new (std::addressof(_data[_size])) T(std::forward<params>(p)...) };
 		++_size;
-		return item;
+		return *item;
+	}
+
+	template<typename It>
+	constexpr T* insert(T* const position, It first, It last) {
+		assert(!_data || (position >= begin() && position <= end()));
+		
+		if (first == last) return position; // empty
+
+		const u64 num_elements = std::distance(first, last);
+		const u64 index = position - begin();
+		const u64 new_size = _size + num_elements;
+
+		if (new_size > _capacity) {
+			reserve(((new_size + 1) * 3) >> 1);
+		}
+
+		// make room
+		T* insert_pos = begin() + index;
+		if (index < _size) {
+			// move elements after insertion point
+			std::memmove(insert_pos + num_elements, insert_pos, (_size - index) * sizeof(T));
+		}
+
+		for (u64 i = 0; first != last; ++first, ++i) {
+			new (std::addressof(insert_pos[i])) T(*first);
+		}
+
+		_size = new_size;
+		return insert_pos;
 	}
 
 	// resizes the vector and initializes new items with their default value.
 	constexpr void resize(u64 new_size) {
 		static_assert(std::is_default_constructible_v<T>, "Type must be default-constructible.");
 		
-		if (new_size < _size) {
+		if (new_size > _size) {
 			reserve(new_size);
-			while (new_size < _size)
+			while (new_size > _size)
 				emplace_back();
 		}
-		else if (new_size > _size) {
+		else if (new_size < _size) {
 			if constexpr (destruct) {
 				destruct_range(new_size, _size);
 			}
@@ -118,12 +147,12 @@ public:
 	constexpr void resize(u64 new_size, const T& value) {
 		static_assert(std::is_copy_constructible_v<T>, "Type must be copy-constructible.");
 
-		if (new_size < _size) {
+		if (new_size > _size) {
 			reserve(new_size);
-			while (new_size < _size)
+			while (new_size > _size)
 				emplace_back(value);
 		}
-		else if (new_size > _size) {
+		else if (new_size < _size) {
 			if constexpr (destruct) {
 				destruct_range(new_size, _size);
 			}
