@@ -155,18 +155,20 @@ d3d12Texture::d3d12Texture(d3d12TextureInitInfo info) {
 	}
 	else if(info.heap && info.desc) {
 		assert(!info.resource);
+		// create resource and put it in a self-managered memory heap
 		DXCall(device->CreatePlacedResource(
 			info.heap, info.allocation_info.Offset, info.desc, info.initial_state, clear_value, IID_PPV_ARGS(&_resource)));
 	}
 	else if(info.desc) {
 		assert(!info.heap && !info.resource);
-
+		// create resource and put it in a driver-managed memory heap
 		DXCall(device->CreateCommittedResource(
 			&D3DX::heap_properties.default_heap, D3D12_HEAP_FLAG_NONE, info.desc, info.initial_state, clear_value, IID_PPV_ARGS(&_resource)));
 	}
 
 	assert(_resource);
 	_srv = CORE::srv_heap().allocate();
+	// create a read-only sampling view
 	device->CreateShaderResourceView(_resource, info.srv_desc, _srv.cpu);
 }
 
@@ -193,6 +195,7 @@ d3d12RenderTexture::d3d12RenderTexture(d3d12TextureInitInfo info) : _texture{ in
 	
 	for (u32 i{ 0 }; i < _mip_count; ++i) {
 		_rtv[i] = CORE::srv_heap().allocate();
+		// create a color writing view
 		device->CreateRenderTargetView(resource(), &desc, _rtv[i].cpu);
 		++desc.Texture2D.MipSlice;
 	}
@@ -210,8 +213,11 @@ void d3d12RenderTexture::release() {
 
 d3d12DepthStencilBuffer::d3d12DepthStencilBuffer(d3d12TextureInitInfo info) : _texture{ info } {
 	assert(info.desc);
-	const DXGI_FORMAT dsv_format{ info.desc->Format }; // read and write the depth stencil texture
+	const DXGI_FORMAT dsv_format{ info.desc->Format }; // store the original format for creating dsv
 
+	// NOTE: For creating dsv we need the resource format to be D32_FLOAT.
+	//		 Howerve for creating srv we need the resource format to be R32_FLOAT.
+	//		 After all, we set the function to be TYPELESS to make the resource both suitable for dsv and srv (can be written or read)
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
 	if (info.desc->Format == DXGI_FORMAT_D32_FLOAT) {
 		info.desc->Format = DXGI_FORMAT_R32_TYPELESS;
@@ -227,19 +233,20 @@ d3d12DepthStencilBuffer::d3d12DepthStencilBuffer(d3d12TextureInitInfo info) : _t
 
 	assert(!info.srv_desc && !info.resource);
 	info.srv_desc = &srv_desc;
-	_texture = d3d12Texture(info);
+	_texture = d3d12Texture(info); // create srv
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc{};
 	dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsv_desc.Flags = D3D12_DSV_FLAG_NONE;
-	dsv_desc.Format = dsv_format;
+	dsv_desc.Format = dsv_format; // now use the original format
 	dsv_desc.Texture2D.MipSlice = 0;
 
 	_dsv = CORE::dsv_heap().allocate();
 
 	auto* const device{ CORE::device() };
 	assert(device);
-	device->CreateDepthStencilView(resource(), &dsv_desc, _dsv.cpu);
+	// create a depth/stencil writing view
+	device->CreateDepthStencilView(resource(), &dsv_desc, _dsv.cpu); // create dsv
 }
 
 void d3d12DepthStencilBuffer::release() {

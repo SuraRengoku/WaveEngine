@@ -36,7 +36,7 @@ constexpr void deferred_release(T*& resource) {
 }
 
 
-ID3D12Device *const device();
+ID3D12Device8 *const device();
 
 descriptorHeap& rtv_heap();
 

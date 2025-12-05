@@ -57,28 +57,31 @@ public:
 	constexpr bool is_shader_visible() const { return _gpu_start.ptr != 0; }
 
 private:
-	ID3D12DescriptorHeap*				_heap;
+	ID3D12DescriptorHeap*				_heap;												// assess map for real memory heap on GPU
 	D3D12_CPU_DESCRIPTOR_HANDLE			_cpu_start{};
 	D3D12_GPU_DESCRIPTOR_HANDLE			_gpu_start{};
-	std::unique_ptr<u32[]>				_free_handles{}; // the indices of slots in the heap which are available for allocation
+	std::unique_ptr<u32[]>				_free_handles{};									// the indices of slots in the heap which are available for allocation
 	// for each type of descriptorHeap, its _free_handles is shared between frames in each rendering round.
 	UTL::vector<u32>					_deferred_free_indices[frame_buffer_count]{};
 	std::mutex							_mutex{};
 	u32									_capacity{ 0 };
-	u32									_size{ 0 }; // heaps that already got allocated, which is also shared between frames
+	u32									_size{ 0 };											// heaps that already got allocated, which is also shared between frames
 	u32									_descriptor_size{};
 	const D3D12_DESCRIPTOR_HEAP_TYPE	_type{};
 };
 
 
+/// <summary>
+/// info pack for a texture for process: allocate graphics memory -> create resource -> bind view
+/// </summary>
 struct d3d12TextureInitInfo {
-	ID3D12Heap1*							heap{ nullptr };
-	ID3D12Resource*							resource{ nullptr };
-	D3D12_SHADER_RESOURCE_VIEW_DESC*		srv_desc{ nullptr };
-	D3D12_RESOURCE_DESC*					desc{ nullptr };
-	D3D12_RESOURCE_ALLOCATION_INFO1			allocation_info{};
-	D3D12_RESOURCE_STATES					initial_state{};
-	D3D12_CLEAR_VALUE						clear_value{};
+	ID3D12Heap1*							heap{ nullptr };			// pointer to the real memory heap on GPU
+	ID3D12Resource*							resource{ nullptr };		// the real texture resource object in graphics memory
+	D3D12_SHADER_RESOURCE_VIEW_DESC*		srv_desc{ nullptr };		// Shader Resource View descriptor
+	D3D12_RESOURCE_DESC*					desc{ nullptr };			// texture resource descriptor
+	D3D12_RESOURCE_ALLOCATION_INFO1			allocation_info{};			// accout of graphics memory and allocation information
+	D3D12_RESOURCE_STATES					initial_state{};			// GPU state when create texture resource
+	D3D12_CLEAR_VALUE						clear_value{};				// default clear value (for RTV / DSV)
 };
 
 
