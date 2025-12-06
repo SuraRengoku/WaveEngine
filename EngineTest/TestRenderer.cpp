@@ -2,6 +2,38 @@
 
 #if TEST_RENDERER
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+template<bool test, typename T = void>
+struct enable_if {};
+
+template<typename T>
+struct enable_if<true, T> { using type = T; };
+
+template<bool test, typename T = void>
+using enable_if_t = typename enable_if<test, T>::type;
+
+template<typename T>
+using iterator_cat_t = typename std::iterator_traits<T>::iterator_category;
+
+template<typename T>
+using void_t = void;
+
+template<typename T, typename=void>
+constexpr bool is_iterator_v = false;
+
+template<typename T>
+constexpr bool is_iterator_v<T, void_t<iterator_cat_t<T>>> = true;
+
+template<typename T, enable_if_t<is_iterator_v<T>, int> = 0>
+void function(T t) {
+	// 
+}
+
+void function(int t) {
+	// 
+}
+////////////////////////////////////////////////////////////////////////////////////////////////
+
 using namespace WAVEENGINE;
 
 GRAPHICS::render_surface _surfaces[4];
@@ -62,8 +94,12 @@ void destroy_render_surface(GRAPHICS::render_surface& surface) {
 }
 
 bool engineTest::initialize() {
-	bool result{ GRAPHICS::initialize(GRAPHICS::graphics_platform::Direct3D12) };
-	if (!result)	return result;
+	while (!compile_shaders()) {
+		if (MessageBox(nullptr, L"Failed to compile engine shaders", L"Shader Compilation Error", MB_RETRYCANCEL) != IDRETRY)
+			return false;
+	}
+
+	if (!GRAPHICS::initialize(GRAPHICS::graphics_platform::Direct3D12)) return false;
 
 	PLATFORM::window_init_info info[]{
 		{&win_proc, nullptr, L"Render window 1", 100, 100, 400, 800},
@@ -76,7 +112,7 @@ bool engineTest::initialize() {
 	for (u32 i{ 0 }; i < _countof(_surfaces); ++i)
 		create_render_surface(_surfaces[i], info[i]);
 
-	return result;
+	return true;
 }
 
 

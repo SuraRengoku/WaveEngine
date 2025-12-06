@@ -12,13 +12,15 @@ constexpr DXGI_FORMAT to_non_srgb(DXGI_FORMAT format) {
 
 } // anonymous namespace
 
-void d3d12Surface::create_swap_chain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format) {
+void d3d12Surface::create_swap_chain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format /*=default_back_buffer_format*/) {
 	assert(factory && cmd_queue);
 	release();
 
 	if (SUCCEEDED(factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &_allow_tearing, sizeof(u32))) && _allow_tearing) {
 		_present_flags = DXGI_PRESENT_ALLOW_TEARING;
 	}
+
+	_format = format;
 
 	// TODO: for test
 	//_present_flags = _allow_tearing = 0;
@@ -70,7 +72,7 @@ void d3d12Surface::finalize() {
 		DXCall(_swap_chain->GetBuffer(i, IID_PPV_ARGS(&data.resource))); // i is used to retrieve the specific internal buffers in swap chain
 
 		D3D12_RENDER_TARGET_VIEW_DESC desc{};
-		desc.Format = CORE::default_render_target_format();
+		desc.Format = _format;
 		desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 		CORE::device()->CreateRenderTargetView(data.resource, &desc, data.rtview.cpu);

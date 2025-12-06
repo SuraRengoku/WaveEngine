@@ -1,6 +1,5 @@
 #include "D3D12Core.h"
 #include "D3D12Surface.h"
-#include "D3D12Helpers.h"
 
 using namespace Microsoft::WRL;
 
@@ -17,7 +16,7 @@ public:
 
 	DISABLE_COPY_AND_MOVE(d3d12Command);
 
-	explicit d3d12Command(ID3D12Device8* const device, D3D12_COMMAND_LIST_TYPE type) {
+	explicit d3d12Command(id3d12Device* const device, D3D12_COMMAND_LIST_TYPE type) {
 		HRESULT hr{ S_OK };
 		D3D12_COMMAND_QUEUE_DESC desc{};
 		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -124,7 +123,7 @@ public:
 	}
 
 	constexpr ID3D12CommandQueue* const command_queue() const { return _cmd_queue; }
-	constexpr ID3D12GraphicsCommandList6* const command_list() const { return _cmd_list; }
+	constexpr id3d12GraphicsCommandList* const command_list() const { return _cmd_list; }
 	constexpr u32 frame_index() const { return _frame_index; }
 
 private:
@@ -154,7 +153,7 @@ private:
 	};
 	
 	ID3D12CommandQueue*         _cmd_queue{ nullptr }; // for GPU
-	ID3D12GraphicsCommandList6* _cmd_list{ nullptr }; // for CPU
+	id3d12GraphicsCommandList*	_cmd_list{ nullptr }; // for CPU
 	ID3D12Fence1*				_fence{ nullptr };
 	u64							_fence_value{ 0 };
 	HANDLE						_fence_event{ nullptr };
@@ -164,7 +163,7 @@ private:
 
 using surfaceCollection = UTL::freeList<d3d12Surface>;
 
-ID3D12Device8*				main_device{ nullptr }; // latest for windows 10
+id3d12Device*				main_device{ nullptr }; // latest for windows 10
 IDXGIFactory7*				dxgi_factory{ nullptr };
 d3d12Command				gfx_command;
 surfaceCollection			surfaces;
@@ -194,7 +193,7 @@ UTL::vector<IUnknown*>		deferred_releases[frame_buffer_count]{};
 u32							deferred_releases_flag[frame_buffer_count];
 std::mutex					deferred_releases_mutex{};
 
-constexpr DXGI_FORMAT render_target_format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB };
+// constexpr DXGI_FORMAT render_target_format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB };
 constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
 
 /// <summary>
@@ -351,15 +350,22 @@ bool initialize() {
 	new (&gfx_command) d3d12Command(main_device, D3D12_COMMAND_LIST_TYPE_DIRECT); // placement new because copy and move constructor has been removed
 	if (!gfx_command.command_queue()) return failed_init();
 
+	// initialize shader modules
+	if (!SHADERS::initialize())
+		return failed_init();
+
 	// TODO: remove
-	create_a_root_signature();
-	create_a_root_signature2();
+	//create_a_root_signature();
+	//create_a_root_signature2();
 
 	return true;
 }
 
 void shutdown() {
 	gfx_command.release();
+
+	// shutdown shader modules
+	SHADERS::shutdown();
 
 	release(dxgi_factory);
 	
@@ -368,6 +374,13 @@ void shutdown() {
 	for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
 		process_deferred_releases(i);
 	}
+
+	// NOTE: some types only use deferred release for their resources during shutdown/reset/clear.
+	//		 To finally release them we call process_deferred_free once more.
+	rtv_desc_heap.process_deferred_free(0);
+	dsv_desc_heap.process_deferred_free(0);
+	srv_desc_heap.process_deferred_free(0);
+	uav_desc_heap.process_deferred_free(0);
 
 	rtv_desc_heap.release();
 	dsv_desc_heap.release();
@@ -398,7 +411,7 @@ void shutdown() {
 }
 
 
-ID3D12Device8* const device() {
+id3d12Device* const device() {
 	return main_device;
 }
 
@@ -418,10 +431,6 @@ descriptorHeap& uav_heap() {
 	return uav_desc_heap;
 }
 
-DXGI_FORMAT default_render_target_format() {
-	return render_target_format;
-}
-
 u32 current_frame_index() {
 	return gfx_command.frame_index();
 }
@@ -432,7 +441,7 @@ void set_deferred_releases_flag() {
 
 surface create_surface(PLATFORM::window window) {
 	surface_id id{ surfaces.add(window) }; // constructor only takes PLATFORM::window as input parameter
-	surfaces[id].create_swap_chain(dxgi_factory, gfx_command.command_queue(), render_target_format);
+	surfaces[id].create_swap_chain(dxgi_factory, gfx_command.command_queue());
 	return surface{ id };
 }
 
@@ -467,7 +476,7 @@ void render_surface(surface_id id) {
 		process_deferred_releases(frame_idx);
 	}
 
-	ID3D12GraphicsCommandList6* cmd_list{ gfx_command.command_list() };
+	id3d12GraphicsCommandList* cmd_list{ gfx_command.command_list() };
 
 	const d3d12Surface& surface{ surfaces[id] };
 	// presenting swap chain buffers happens in lockstep with frame buffers
@@ -563,7 +572,7 @@ void create_a_root_signature() {
 
 	// use root_sig during rendering (not in this function, obviously)
 #if 0
-	ID3D12GraphicsCommandList6* cmd_list{};
+	id3d12GraphicsCommandList* cmd_list{};
 	cmd_list->SetGraphicsRootSignature(root_sig);
 	// only one resouce heap and sampler heap can be set at any time
 	// so, max number of heaps is 2

@@ -17,6 +17,8 @@
 namespace WAVEENGINE::GRAPHICS::D3D12 {
 
 constexpr u32 frame_buffer_count{ 3 };
+using id3d12Device = ID3D12Device8;
+using id3d12GraphicsCommandList = ID3D12GraphicsCommandList6;
 
 }
 
@@ -66,3 +68,7 @@ if(swprintf_s(full_name, L"%s[%u]", name, idx) > 0) {	\
 #define NAME_D3D12_OBJECT_INDEXED(x, idx, name)
 
 #endif // _DEBUG
+
+
+#include "D3D12Helpers.h"
+#include "D3D12CommonHeaders.h"

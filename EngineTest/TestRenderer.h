@@ -4,6 +4,7 @@
 #include "..\Platform\Platform.h"
 #include "..\Platform\PlatformTypes.h"
 #include "..\Graphics\Renderer.h"
+#include "ShaderCompilation.h"
 
 
 class engineTest : public test {

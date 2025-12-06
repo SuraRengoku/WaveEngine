@@ -1,6 +1,7 @@
 #pragma once
-#include "D3D12CommonHeaders.h"
+
 #include "D3D12Resources.h"
+#include "D3D12Shaders.h"
 
 namespace WAVEENGINE::GRAPHICS::D3D12 {
 
@@ -36,7 +37,7 @@ constexpr void deferred_release(T*& resource) {
 }
 
 
-ID3D12Device8 *const device();
+id3d12Device *const device();
 
 descriptorHeap& rtv_heap();
 
@@ -45,8 +46,6 @@ descriptorHeap& dsv_heap();
 descriptorHeap& srv_heap();
 
 descriptorHeap& uav_heap();
-
-DXGI_FORMAT default_render_target_format();
 
 u32 current_frame_index();
 

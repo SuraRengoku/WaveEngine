@@ -1,5 +1,4 @@
 #include "D3D12Resources.h"
-#include "D3D12Helpers.h"
 
 namespace WAVEENGINE::GRAPHICS::D3D12 {
 

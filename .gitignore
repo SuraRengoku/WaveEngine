@@ -28,3 +28,6 @@ obj/
 # System garbages
 Thumbs.db
 .DS_Store
+
+# NuGet Packages
+*.nupkg

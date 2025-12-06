@@ -5,6 +5,13 @@
 namespace WAVEENGINE::GRAPHICS {
 
 namespace {
+
+// Defines where the compiled engine shaders file is located for each one of the supported APIs.
+constexpr const char* engine_shader_paths[]{
+	".\\shaders\\d3d12\\shaders.bin",
+	//".\\shaders\\vulkan\\shader.bin",
+};
+
 platform_interface gfx{};
 
 bool set_platform_interface(graphics_platform platform) {
@@ -22,6 +29,7 @@ bool set_platform_interface(graphics_platform platform) {
 		return false;
 	}
 	
+	assert(gfx.platform == platform);
 	return true;
 }
 
@@ -62,6 +70,25 @@ u32 surface::height() const {
 void surface::render() const {
 	assert(is_valid());
 	gfx.surface.render(this->_id);
+}
+
+/// <summary>
+/// Get the location of compiled engine shaders relative to the executable's path.
+/// The path is for the graphics API that's currently in use.
+/// </summary>
+/// <returns></returns>
+const char* get_engine_shaders_path() {
+	return engine_shader_paths[(u32)gfx.platform];
+}
+
+/// <summary>
+/// Get the location of compiled engine shaders, for the specified platform, relative to the executable's path.
+/// The path is for the graphics API that's currently in use.
+/// </summary>
+/// <param name="platform"></param>
+/// <returns></returns>
+const char* get_engine_shaders_path(graphics_platform platform) {
+	return engine_shader_paths[(u32)platform];
 }
 
 }

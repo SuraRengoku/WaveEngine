@@ -36,6 +36,9 @@ enum class graphics_platform : u32 {
 bool initialize(graphics_platform platform);
 void shutdown();
 
+const char* get_engine_shaders_path();
+const char* get_engine_shaders_path(graphics_platform platform);
+
 surface create_surface(PLATFORM::window window);
 void remove_surface(surface_id id);
 }
