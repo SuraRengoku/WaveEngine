@@ -73,11 +73,13 @@ public:
 		std::wstring file{ to_wstring(info.file) };
 		std::wstring func{ to_wstring(info.function) };
 		std::wstring prof{ to_wstring(_profile_strings[(u32)info.type]) }; 
+		std::wstring inc{ to_wstring(shaders_source_path) };
 
 		LPCWSTR args[]{
 			file.c_str(),				// optional shader source file name for error reporting
 			L"-E", func.c_str(),		// entry function
 			L"-T", prof.c_str(),		// target profile
+			L"-I", inc.c_str(),			// include path
 			DXC_ARG_ALL_RESOURCES_BOUND,
 #if _DEBUG
 			DXC_ARG_DEBUG,

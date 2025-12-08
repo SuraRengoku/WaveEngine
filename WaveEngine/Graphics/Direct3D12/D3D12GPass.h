@@ -1,18 +1,22 @@
 #pragma once
 
 #include "D3D12CommonHeaders.h"
-#include "D3D12Shaders.h"
-#include "D3D12Core.h"
+#include "D3D12Resources.h"
+#include "D3D12Helpers.h"
 
 namespace WAVEENGINE::GRAPHICS::D3D12 {
 struct d3d12FrameInfo;
+class d3d12RenderTexture;
+class d3d12DepthStencilBuffer;
 }
 
 namespace WAVEENGINE::GRAPHICS::D3D12::GPASS {
 
 bool initialize();
-
 void shutdown();
+
+[[nodiscard]] const d3d12RenderTexture& main_buffer();
+[[nodiscard]] const d3d12DepthStencilBuffer& depth_buffer();
 
 void set_size(MATH::u32v2 size);
 

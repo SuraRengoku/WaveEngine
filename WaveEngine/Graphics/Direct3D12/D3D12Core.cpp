@@ -354,8 +354,8 @@ bool initialize() {
 	new (&gfx_command) d3d12Command(main_device, D3D12_COMMAND_LIST_TYPE_DIRECT); // placement new because copy and move constructor has been removed
 	if (!gfx_command.command_queue()) return failed_init();
 
-	// initialize shader and gpass modules
-	if (!(SHADERS::initialize() && GPASS::initialize()))
+	// initialize modules
+	if (!(SHADERS::initialize() && GPASS::initialize() && POSTP::initialize()))
 		return failed_init();
 
 	// TODO: remove
@@ -368,6 +368,8 @@ bool initialize() {
 void shutdown() {
 	gfx_command.release();
 
+	// shutdown Post-process module
+	POSTP::shutdown();
 	// shutdown gpass module
 	GPASS::shutdown();
 	// shutdown shader module
@@ -492,6 +494,8 @@ void render_surface(surface_id id) {
 
 	// Record commands
 	// ...
+	ID3D12DescriptorHeap* const heaps[]{ srv_desc_heap.heap() };
+	cmd_list->SetDescriptorHeaps(1, &heaps[0]);
 
 	cmd_list->RSSetViewports(1, &surface.viewport());
 	cmd_list->RSSetScissorRects(1, &surface.scissor_rect());
@@ -506,13 +510,15 @@ void render_surface(surface_id id) {
 	GPASS::add_transitions_for_gpass(barriers);
 	barriers.apply(cmd_list);
 	GPASS::set_render_targets_for_gpass(cmd_list);
-	GPASS::render(cmd_list, frame_info);
+	GPASS::render(cmd_list, frame_info); // draw call inside
 
 	D3DX::transition_resource(cmd_list, current_back_buffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	// Post-process
 	GPASS::add_transitions_for_post_process(barriers);
 	barriers.apply(cmd_list);
 	// will write to the current back buffer, so back buffer is a render target
+
+	POSTP::post_process_render(cmd_list, surface.rtv());
 
 	// after post process
 	D3DX::transition_resource(cmd_list, current_back_buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

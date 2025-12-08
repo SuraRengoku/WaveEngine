@@ -3,6 +3,7 @@
 #include "D3D12Resources.h"
 #include "D3D12Shaders.h"
 #include "D3D12GPass.h"
+#include "D3D12PostProcess.h"
 
 namespace WAVEENGINE::GRAPHICS::D3D12 {
 

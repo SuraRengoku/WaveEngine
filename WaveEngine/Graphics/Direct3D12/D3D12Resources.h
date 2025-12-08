@@ -8,8 +8,9 @@ namespace WAVEENGINE::GRAPHICS::D3D12 {
 class descriptorHeap;
 
 struct descriptorHandle {
-	D3D12_CPU_DESCRIPTOR_HANDLE cpu{};
-	D3D12_GPU_DESCRIPTOR_HANDLE gpu{};
+	D3D12_CPU_DESCRIPTOR_HANDLE		cpu{};
+	D3D12_GPU_DESCRIPTOR_HANDLE		gpu{};
+	u32								index{ u32_invalid_id };
 
 	constexpr bool is_valid() const { return cpu.ptr != 0; }
 	constexpr bool is_shader_visible() const { return gpu.ptr != 0; }
@@ -18,7 +19,6 @@ struct descriptorHandle {
 private:
 	friend class descriptorHeap;
 	descriptorHeap*		container{ nullptr };
-	u32					index{ u32_invalid_id };
 #endif
 
 };
@@ -47,14 +47,14 @@ public:
 	[[nodiscard]] descriptorHandle allocate();
 	void free(descriptorHandle& handle);
 
-	constexpr D3D12_DESCRIPTOR_HEAP_TYPE type() const { return _type; }
-	constexpr D3D12_CPU_DESCRIPTOR_HANDLE cpu_start() const { return _cpu_start; }
-	constexpr D3D12_GPU_DESCRIPTOR_HANDLE gpu_start() const { return _gpu_start; }
-	constexpr ID3D12DescriptorHeap* const heap() const { return _heap; }
-	constexpr u32 capacity() const { return _capacity; }
-	constexpr u32 size() const { return _size; }
-	constexpr u32 descriptor_size() const { return _descriptor_size; }
-	constexpr bool is_shader_visible() const { return _gpu_start.ptr != 0; }
+	[[nodiscard]] constexpr D3D12_DESCRIPTOR_HEAP_TYPE type() const { return _type; }
+	[[nodiscard]] constexpr D3D12_CPU_DESCRIPTOR_HANDLE cpu_start() const { return _cpu_start; }
+	[[nodiscard]] constexpr D3D12_GPU_DESCRIPTOR_HANDLE gpu_start() const { return _gpu_start; }
+	[[nodiscard]] constexpr ID3D12DescriptorHeap* const heap() const { return _heap; }
+	[[nodiscard]] constexpr u32 capacity() const { return _capacity; }
+	[[nodiscard]] constexpr u32 size() const { return _size; }
+	[[nodiscard]] constexpr u32 descriptor_size() const { return _descriptor_size; }
+	[[nodiscard]] constexpr bool is_shader_visible() const { return _gpu_start.ptr != 0; }
 
 private:
 	ID3D12DescriptorHeap*				_heap;												// assess map for real memory heap on GPU
@@ -114,8 +114,8 @@ public:
 
 	void release();
 
-	constexpr ID3D12Resource* const resource() const { return _resource; }
-	constexpr descriptorHandle srv() const { return _srv; }
+	[[nodiscard]] constexpr ID3D12Resource* const resource() const { return _resource; }
+	[[nodiscard]] constexpr descriptorHandle srv() const { return _srv; }
 
 private:
 	constexpr void move(d3d12Texture& o) {
@@ -164,10 +164,10 @@ public:
 
 	void release();
 
-	constexpr u32 mip_count() const { return _mip_count; }
-	constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv(u32 mip_index) const { assert(mip_index < _mip_count); return _rtv[mip_index].cpu; }
-	constexpr descriptorHandle srv() const { return _texture.srv(); }
-	constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
+	[[nodiscard]] constexpr u32 mip_count() const { return _mip_count; }
+	[[nodiscard]] constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv(u32 mip_index) const { assert(mip_index < _mip_count); return _rtv[mip_index].cpu; }
+	[[nodiscard]] constexpr descriptorHandle srv() const { return _texture.srv(); }
+	[[nodiscard]] constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
 
 private:
 
@@ -220,9 +220,9 @@ public:
 
 	~d3d12DepthStencilBuffer() { release(); }
 
-	constexpr D3D12_CPU_DESCRIPTOR_HANDLE dsv() const { return _dsv.cpu; }
-	constexpr descriptorHandle srv() const { return _texture.srv(); }
-	constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
+	[[nodiscard]] constexpr D3D12_CPU_DESCRIPTOR_HANDLE dsv() const { return _dsv.cpu; }
+	[[nodiscard]] constexpr descriptorHandle srv() const { return _texture.srv(); }
+	[[nodiscard]] constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
 
 private:
 	d3d12Texture			_texture{};

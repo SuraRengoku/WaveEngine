@@ -42,6 +42,12 @@ timeIt timer{};
 
 void destroy_render_surface(GRAPHICS::render_surface& surface);
 
+bool is_restarting{ false };
+
+bool test_initialize();
+
+void test_shutdown();
+
 LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	switch (msg) {
 	case WM_DESTROY: {
@@ -56,7 +62,7 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 				}
 			}
 		}
-		if (all_closed) {
+		if (all_closed && !is_restarting) {
 			PostQuitMessage(0);
 			return 0;
 		}
@@ -64,7 +70,7 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	}
 	case WM_SYSCHAR: {
 		if(wparam == VK_RETURN && (HIWORD(lparam) & KF_ALTDOWN)) {
-			PLATFORM::window win{ PLATFORM::window_id{(ID::id_type)GetWindowLongPtr(hwnd, GWLP_USERDATA)} };
+			PLATFORM::window win{ PLATFORM::window_id{static_cast<ID::id_type>(GetWindowLongPtr(hwnd, GWLP_USERDATA))} };
 			win.set_fullscreen(!win.is_fullscreen());
 			return 0;
 		}
@@ -74,6 +80,11 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		if (wparam == VK_ESCAPE) {
 			PostMessage(hwnd, WM_CLOSE, 0, 0);
 			return 0;
+		} else if (wparam == VK_F11)
+		{
+			is_restarting = true;
+			test_shutdown();
+			test_initialize();
 		}
 	}
 	}
@@ -93,7 +104,7 @@ void destroy_render_surface(GRAPHICS::render_surface& surface) {
 	if(temp.window.is_valid())	PLATFORM::remove_window(temp.window.get_id());
 }
 
-bool engineTest::initialize() {
+bool test_initialize() {
 	while (!compile_shaders()) {
 		if (MessageBox(nullptr, L"Failed to compile engine shaders", L"Shader Compilation Error", MB_RETRYCANCEL) != IDRETRY)
 			return false;
@@ -112,7 +123,19 @@ bool engineTest::initialize() {
 	for (u32 i{ 0 }; i < _countof(_surfaces); ++i)
 		create_render_surface(_surfaces[i], info[i]);
 
+	is_restarting = false;
 	return true;
+}
+
+void test_shutdown() {
+	for (u32 i{ 0 }; i < _countof(_surfaces); ++i)
+		destroy_render_surface(_surfaces[i]);
+
+	GRAPHICS::shutdown();
+}
+
+bool engineTest::initialize() {
+	return test_initialize();
 }
 
 
@@ -131,10 +154,7 @@ void engineTest::run() {
 }
 
 void engineTest::shutdown() {
-	for (u32 i{ 0 }; i < _countof(_surfaces); ++i)
-		destroy_render_surface(_surfaces[i]);
-
-	GRAPHICS::shutdown();
+	test_shutdown();
 }
 
 #endif // TEST_RENDERER

@@ -1,8 +1,18 @@
 #include "D3D12GPass.h"
+#include "D3D12Shaders.h"
+#include "D3D12Core.h"
 
 namespace WAVEENGINE::GRAPHICS::D3D12::GPASS {
 
 namespace {
+
+struct gpassRootParamIndices {
+	enum : u32 {
+		root_constants,
+
+		count
+	};
+};
 
 constexpr DXGI_FORMAT		main_buffer_format{ DXGI_FORMAT_R16G16B16A16_FLOAT };
 constexpr DXGI_FORMAT		depth_buffer_format{ DXGI_FORMAT_D32_FLOAT };
@@ -77,9 +87,10 @@ bool create_gpass_pso_and_root_signature() {
 	assert(!gpass_root_sig && !gpass_pso);
 
 	// create GPass root signature
-	D3DX::d3d12RootParameter parameters[1]{};
-	parameters[0].as_constants(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-	const D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], _countof(parameters) };
+	using idx = gpassRootParamIndices;
+	D3DX::d3d12RootParameter parameters[idx::count]{};
+	parameters[0].as_constants(3, D3D12_SHADER_VISIBILITY_PIXEL, 1);
+	const D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], idx::count };
 	gpass_root_sig = root_signature.create();
 	assert(gpass_root_sig);
 	NAME_D3D12_OBJECT(gpass_root_sig, L"GPass Root Signature");
@@ -125,6 +136,13 @@ void shutdown() {
 	CORE::release(gpass_pso);
 }
 
+const d3d12RenderTexture& main_buffer() {
+	return gpass_main_buffer;
+}
+const d3d12DepthStencilBuffer& depth_buffer() {
+	return gpass_depth_buffer;
+}
+
 // call this every frame before rendering anything to gpass
 void set_size(MATH::u32v2 size) {
 	MATH::u32v2& d{ dimensions };
@@ -144,8 +162,14 @@ void render(id3d12GraphicsCommandList* cmd_list, const d3d12FrameInfo& info) {
 	cmd_list->SetPipelineState(gpass_pso);
 
 	static u32 frame{ 0 };
-	++frame;
-	cmd_list->SetGraphicsRoot32BitConstant(0, frame, 0);
+	struct {
+		f32 width;
+		f32 height;
+		u32 frame;
+	} constants{static_cast<f32>(info.surface_height), static_cast<f32>(info.surface_width), ++frame };
+
+	using idx = gpassRootParamIndices;
+	cmd_list->SetGraphicsRoot32BitConstants(idx::root_constants, 3, &constants, 0);
 
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmd_list->DrawInstanced(3, 1, 0, 0);

@@ -76,4 +76,3 @@ if(swprintf_s(full_name, L"%s[%u]", name, idx) > 0) {	\
 
 
 #include "D3D12Helpers.h"
-#include "D3D12CommonHeaders.h"
