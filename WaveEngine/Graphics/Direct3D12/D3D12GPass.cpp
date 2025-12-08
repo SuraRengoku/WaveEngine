@@ -90,7 +90,7 @@ bool create_gpass_pso_and_root_signature() {
 	using idx = gpassRootParamIndices;
 	D3DX::d3d12RootParameter parameters[idx::count]{};
 	parameters[0].as_constants(3, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-	const D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], idx::count };
+	constexpr D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], idx::count };
 	gpass_root_sig = root_signature.create();
 	assert(gpass_root_sig);
 	NAME_D3D12_OBJECT(gpass_root_sig, L"GPass Root Signature");
@@ -166,7 +166,7 @@ void render(id3d12GraphicsCommandList* cmd_list, const d3d12FrameInfo& info) {
 		f32 width;
 		f32 height;
 		u32 frame;
-	} constants{static_cast<f32>(info.surface_height), static_cast<f32>(info.surface_width), ++frame };
+	} constants{static_cast<f32>(info.surface_width), static_cast<f32>(info.surface_height), ++frame };
 
 	using idx = gpassRootParamIndices;
 	cmd_list->SetGraphicsRoot32BitConstants(idx::root_constants, 3, &constants, 0);

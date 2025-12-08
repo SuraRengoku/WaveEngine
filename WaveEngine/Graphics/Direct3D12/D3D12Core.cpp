@@ -310,17 +310,17 @@ bool initialize() {
 	if (FAILED(hr)) return failed_init();
 
 	// determine which adapter (i.e. graphics card) to use
-	ComPtr<IDXGIAdapter4> main_adpater;
-	main_adpater.Attach(determine_main_adapter());
-	if (!main_adpater) return failed_init();
+	ComPtr<IDXGIAdapter4> main_adapter;
+	main_adapter.Attach(determine_main_adapter());
+	if (!main_adapter) return failed_init();
 
-	// determine what is the maxmimum feature level that is supporter
-	D3D_FEATURE_LEVEL max_feature_level{ get_max_feature_level(main_adpater.Get()) };
+	// determine what is the maximum feature level that is supporter
+	D3D_FEATURE_LEVEL max_feature_level{ get_max_feature_level(main_adapter.Get()) };
 	assert(max_feature_level >= minimum_feature_level);
 	if (max_feature_level < minimum_feature_level) return failed_init();
 
 	// create a ID3D12Device (this is a virtual adapter)
-	DXCall(hr = D3D12CreateDevice(main_adpater.Get(), max_feature_level, IID_PPV_ARGS(&main_device)));
+	DXCall(hr = D3D12CreateDevice(main_adapter.Get(), max_feature_level, IID_PPV_ARGS(&main_device)));
 	if (FAILED(hr)) return failed_init();
 
 	NAME_D3D12_OBJECT(main_device, L"Main D3D12 Device");
