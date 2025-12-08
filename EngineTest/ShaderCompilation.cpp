@@ -4,14 +4,19 @@
 #include "Graphics\Direct3D12\D3D12Shaders.h"
 
 // before include dxcapi.h we should first include windows related files
-#include <dxcapi.h>
-#include <d3d12shader.h>
+#include "..\packages\DirectXShaderCompiler\inc\dxcapi.h"
+#include "..\packages\DirectXShaderCompiler\inc\d3d12shader.h"
+//#include <dxcapi.h>
+//#include <d3d12shader.h>
 
 #include <fstream>
 #include <filesystem>
 
-// add DXC lib link
-#pragma comment(lib, "dxcompiler.lib")
+// add DXC lib link, we wouldn't need to do this if DXC had a NuGet package
+#pragma comment(lib, "../packages/DirectXShaderCompiler/lib/x64/dxcompiler.lib")
+
+// ref: https://computergraphics.stackexchange.com/questions/9953/dxc-error-when-compiling-pso
+// copy dxcompiler.dll and dxil.dll into output dir to avoid Vertex Shader error
 
 using namespace WAVEENGINE;
 using namespace WAVEENGINE::GRAPHICS::D3D12::SHADERS;
@@ -27,8 +32,9 @@ struct shaderFileInfo {
 };
 
 constexpr shaderFileInfo shader_files[]{
-	{"FullScreenTriangle.hlsl", "FullScreenTriangleVS", engineShader::fullscreen_triangle_vs, shaderType::vertex},
-	{"FillColor.hlsl", "FillColorPS", engineShader::fill_color_ps, shaderType::pixel},
+	{"FullScreenTriangle.hlsl", "FullScreenTriangleVS", engineShader::id::fullscreen_triangle_vs, shaderType::vertex},
+	{"FillColor.hlsl", "FillColorPS", engineShader::id::fill_color_ps, shaderType::pixel},
+	{"PostProcess.hlsl", "PostProcessPS", engineShader::id::post_process_ps, shaderType::pixel},
 };
 
 static_assert(_countof(shader_files) == engineShader::count);
@@ -125,7 +131,8 @@ public:
 	}
 
 private:
-	const char*						_profile_strings[shaderType::type::count]{ "vs_6_5", "hs_6_5", "ds_6_5", "gs_6_5", "ps_6_5", "cs_6_5", "as_6_5", "ms_6_5" };
+	// NOTE: Shader model 6.x can also be used (AS and MS are only supported from SM6.5 on).
+	constexpr static const char*	_profile_strings[shaderType::type::count]{ "vs_6_5", "hs_6_5", "ds_6_5", "gs_6_5", "ps_6_5", "cs_6_5", "as_6_5", "ms_6_5" };
 	static_assert(_countof(_profile_strings) == shaderType::type::count);
 
 	ComPtr<IDxcCompiler3>			_compiler{ nullptr };
@@ -146,7 +153,7 @@ bool compiled_shaders_are_up_to_date() {
 	std::filesystem::path full_path{};
 
 	// check if either of the engine shader source files is newer than the compiled shader file.
-	// In that case, we nned to recompile.
+	// In that case, we need to recompile.
 	for (u32 i{ 0 }; i < engineShader::id::count; ++i) {
 		auto& info = shader_files[i];
 
@@ -201,7 +208,7 @@ bool compile_shaders() {
 		if (!std::filesystem::exists(full_path)) return false;
 
 		ComPtr<IDxcBlob> compiled_shader{ compiler.compile(info, full_path) };
-		if (compiled_shader->GetBufferPointer() && compiled_shader->GetBufferSize()) {
+		if (compiled_shader && compiled_shader->GetBufferPointer() && compiled_shader->GetBufferSize()) {
 			shaders.emplace_back(std::move(compiled_shader));
 		}
 		else {

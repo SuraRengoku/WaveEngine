@@ -79,7 +79,7 @@ struct d3d12TextureInitInfo {
 	ID3D12Resource*							resource{ nullptr };		// the real texture resource object in graphics memory
 	D3D12_SHADER_RESOURCE_VIEW_DESC*		srv_desc{ nullptr };		// Shader Resource View descriptor
 	D3D12_RESOURCE_DESC*					desc{ nullptr };			// texture resource descriptor
-	D3D12_RESOURCE_ALLOCATION_INFO1			allocation_info{};			// accout of graphics memory and allocation information
+	D3D12_RESOURCE_ALLOCATION_INFO1			allocation_info{};			// account of graphics memory and allocation information
 	D3D12_RESOURCE_STATES					initial_state{};			// GPU state when create texture resource
 	D3D12_CLEAR_VALUE						clear_value{};				// default clear value (for RTV / DSV)
 };
@@ -136,11 +136,11 @@ private:
 class d3d12RenderTexture {
 public:
 	d3d12RenderTexture() = default;
-	explicit d3d12RenderTexture(d3d12TextureInitInfo info);
+	explicit d3d12RenderTexture(const d3d12TextureInitInfo& info);
 
 	DISABLE_COPY(d3d12RenderTexture);
 
-	constexpr d3d12RenderTexture(d3d12RenderTexture&& o) :
+	constexpr d3d12RenderTexture(d3d12RenderTexture&& o) noexcept:
 		_texture{ std::move(o._texture) }, _mip_count{ o._mip_count } {
 		
 		for (u32 i{ 0 }; i < _mip_count; ++i) {
@@ -149,7 +149,7 @@ public:
 		o.reset();
 	}
 
-	constexpr d3d12RenderTexture& operator=(d3d12RenderTexture&& o) {
+	constexpr d3d12RenderTexture& operator=(d3d12RenderTexture&& o) noexcept {
 		assert(this != &o);
 		if (this != &o) {
 			release();
@@ -197,16 +197,16 @@ private:
 class d3d12DepthStencilBuffer {
 public:
 	d3d12DepthStencilBuffer() = default;
-	explicit d3d12DepthStencilBuffer(d3d12TextureInitInfo info);
+	explicit d3d12DepthStencilBuffer(d3d12TextureInitInfo& info);
 	
 	DISABLE_COPY(d3d12DepthStencilBuffer);
 
-	constexpr d3d12DepthStencilBuffer(d3d12DepthStencilBuffer&& o) :
+	constexpr d3d12DepthStencilBuffer(d3d12DepthStencilBuffer&& o) noexcept:
 		_texture{ std::move(o._texture) }, _dsv{o._dsv} {
 		o._dsv = {};
 	}
 	
-	constexpr d3d12DepthStencilBuffer& operator=(d3d12DepthStencilBuffer&& o) {
+	constexpr d3d12DepthStencilBuffer& operator=(d3d12DepthStencilBuffer&& o) noexcept {
 		assert(this != &o);
 		if (this != &o) {
 			_texture = std::move(o._texture);

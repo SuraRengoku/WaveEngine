@@ -3,7 +3,7 @@ struct VSOutput {
 	noperspective float2 UV : TEXCOORD;
 };
 
-VSOutput FullScreenTriangleVS(in uint VertexId : SV_VERTEXID) { 
+VSOutput FullScreenTriangleVS(in uint VertexIdx : SV_VERTEXID) { 
 	VSOutput output;
 
 	// TODO: write fullscreen triangle shader code

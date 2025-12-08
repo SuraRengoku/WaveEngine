@@ -2,10 +2,16 @@
 
 #include "D3D12Resources.h"
 #include "D3D12Shaders.h"
+#include "D3D12GPass.h"
 
 namespace WAVEENGINE::GRAPHICS::D3D12 {
 
 class descriptorHeap;
+
+struct d3d12FrameInfo {
+	u32 surface_width{};
+	u32 surface_height{};
+};
 
 } // forward decleration
 

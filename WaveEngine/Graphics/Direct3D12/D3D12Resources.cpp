@@ -154,7 +154,7 @@ d3d12Texture::d3d12Texture(d3d12TextureInitInfo info) {
 	}
 	else if(info.heap && info.desc) {
 		assert(!info.resource);
-		// create resource and put it in a self-managered memory heap
+		// create resource and put it in a self-managed memory heap
 		DXCall(device->CreatePlacedResource(
 			info.heap, info.allocation_info.Offset, info.desc, info.initial_state, clear_value, IID_PPV_ARGS(&_resource)));
 	}
@@ -178,7 +178,7 @@ void d3d12Texture::release() {
 
 //// RENDER TEXTURE ///////////////////////////////////////////////////////////////////////////////////////
 
-d3d12RenderTexture::d3d12RenderTexture(d3d12TextureInitInfo info) : _texture{ info } {
+d3d12RenderTexture::d3d12RenderTexture(const d3d12TextureInitInfo& info) : _texture{ info } {
 	assert(info.desc);
 	_mip_count = resource()->GetDesc().MipLevels;
 	assert(_mip_count && _mip_count <= d3d12Texture::max_mips);
@@ -193,7 +193,7 @@ d3d12RenderTexture::d3d12RenderTexture(d3d12TextureInitInfo info) : _texture{ in
 	assert(device);
 	
 	for (u32 i{ 0 }; i < _mip_count; ++i) {
-		_rtv[i] = CORE::srv_heap().allocate();
+		_rtv[i] = CORE::rtv_heap().allocate();
 		// create a color writing view
 		device->CreateRenderTargetView(resource(), &desc, _rtv[i].cpu);
 		++desc.Texture2D.MipSlice;
@@ -210,12 +210,12 @@ void d3d12RenderTexture::release() {
  
 //// DEPTH BUFFER ///////////////////////////////////////////////////////////////////////////////////////
 
-d3d12DepthStencilBuffer::d3d12DepthStencilBuffer(d3d12TextureInitInfo info) : _texture{ info } {
+d3d12DepthStencilBuffer::d3d12DepthStencilBuffer(d3d12TextureInitInfo& info) /*: _texture{ info }*/ {
 	assert(info.desc);
 	const DXGI_FORMAT dsv_format{ info.desc->Format }; // store the original format for creating dsv
 
 	// NOTE: For creating dsv we need the resource format to be D32_FLOAT.
-	//		 Howerve for creating srv we need the resource format to be R32_FLOAT.
+	//		 However, for creating srv we need the resource format to be R32_FLOAT.
 	//		 After all, we set the function to be TYPELESS to make the resource both suitable for dsv and srv (can be written or read)
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
 	if (info.desc->Format == DXGI_FORMAT_D32_FLOAT) {

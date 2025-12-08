@@ -26,10 +26,11 @@ component create(const init_info& info, GAME_ENTITY::entity entity) {
 		scales.emplace_back(info.scale);
 	}
 
-	return component(transform_id{ (ID::id_type)positions.size() - 1 });
+	//return component(transform_id{ (ID::id_type)positions.size() - 1 });
+	return component{ transform_id{entity.get_id()} };
 }
 
-void remove(component c) {
+void remove([[maybe_unused]]component c) {
 	assert(c.is_valid());
 
 	// TODO 

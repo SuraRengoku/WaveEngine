@@ -83,10 +83,13 @@ public:
 	}
 
 	// signal the fence with new fence value
-	void end_frame() {
+	void end_frame(const d3d12Surface& surface) {
 		DXCall(_cmd_list->Close());
 		ID3D12CommandList* const cmd_lists[]{ _cmd_list };
 		_cmd_queue->ExecuteCommandLists(_countof(cmd_lists), &cmd_lists[0]);
+
+		// presenting swap chain buffers happens in lockstep with frame buffers;
+		surface.present();
 
 		u64& fence_value{ _fence_value };
 		++fence_value;
@@ -167,6 +170,7 @@ id3d12Device*				main_device{ nullptr }; // latest for windows 10
 IDXGIFactory7*				dxgi_factory{ nullptr };
 d3d12Command				gfx_command;
 surfaceCollection			surfaces;
+D3DX::d3d12ResourceBarrier	resource_barriers{};
 
 descriptorHeap				rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
 descriptorHeap				dsv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
@@ -257,7 +261,7 @@ void __declspec(noinline) process_deferred_releases(u32 frame_idx) {
 	srv_desc_heap.process_deferred_free(frame_idx);
 	uav_desc_heap.process_deferred_free(frame_idx);
 	
-	UTL::vector<IUnknown*> resources{ deferred_releases[frame_idx] };
+	UTL::vector<IUnknown*>& resources{ deferred_releases[frame_idx] };
 	if (!resources.empty()) {
 		for (auto& resource : resources) release(resource);
 		resources.clear();
@@ -350,8 +354,8 @@ bool initialize() {
 	new (&gfx_command) d3d12Command(main_device, D3D12_COMMAND_LIST_TYPE_DIRECT); // placement new because copy and move constructor has been removed
 	if (!gfx_command.command_queue()) return failed_init();
 
-	// initialize shader modules
-	if (!SHADERS::initialize())
+	// initialize shader and gpass modules
+	if (!(SHADERS::initialize() && GPASS::initialize()))
 		return failed_init();
 
 	// TODO: remove
@@ -364,13 +368,15 @@ bool initialize() {
 void shutdown() {
 	gfx_command.release();
 
-	// shutdown shader modules
+	// shutdown gpass module
+	GPASS::shutdown();
+	// shutdown shader module
 	SHADERS::shutdown();
 
 	release(dxgi_factory);
 	
 	// process_deferred_releases should be called first because 
-	// some resources(i.e. swap chains) can't be released before their depending resources are released
+	// some resources(i.e. swap chains) can't be released before their depending on resources are released
 	for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
 		process_deferred_releases(i);
 	}
@@ -467,7 +473,7 @@ void render_surface(surface_id id) {
 	// reset the allocator once the GPU is done with it
 	// This frees the memory that was used to store commands
 	gfx_command.begin_frame();
-
+	id3d12GraphicsCommandList* cmd_list{ gfx_command.command_list() };
 	// last round rendering for current frame finished
 
 	// release resources in last round
@@ -476,18 +482,44 @@ void render_surface(surface_id id) {
 		process_deferred_releases(frame_idx);
 	}
 
-	id3d12GraphicsCommandList* cmd_list{ gfx_command.command_list() };
-
 	const d3d12Surface& surface{ surfaces[id] };
-	// presenting swap chain buffers happens in lockstep with frame buffers
-	surface.present(); // switch to a new back_buffer
+
+	ID3D12Resource* const current_back_buffer{ surface.back_buffer() };
+
+	d3d12FrameInfo frame_info{ surface.width(), surface.height() };
+	GPASS::set_size({ frame_info.surface_width, frame_info.surface_height });
+	D3DX::d3d12ResourceBarrier& barriers{ resource_barriers };
 
 	// Record commands
 	// ...
 
+	cmd_list->RSSetViewports(1, &surface.viewport());
+	cmd_list->RSSetScissorRects(1, &surface.scissor_rect());
+
+	// Depth prepass
+	GPASS::add_transitions_for_depth_prepass(barriers);
+	barriers.apply(cmd_list);
+	GPASS::set_render_targets_for_depth_prepass(cmd_list);
+	GPASS::depth_prepass(cmd_list, frame_info);
+
+	// Geometry and lighting pass
+	GPASS::add_transitions_for_gpass(barriers);
+	barriers.apply(cmd_list);
+	GPASS::set_render_targets_for_gpass(cmd_list);
+	GPASS::render(cmd_list, frame_info);
+
+	D3DX::transition_resource(cmd_list, current_back_buffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	// Post-process
+	GPASS::add_transitions_for_post_process(barriers);
+	barriers.apply(cmd_list);
+	// will write to the current back buffer, so back buffer is a render target
+
+	// after post process
+	D3DX::transition_resource(cmd_list, current_back_buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+
 	// Done recording commands, ready to execute commands
 	// signal and increment the fence value for next frame
-	gfx_command.end_frame();
+	gfx_command.end_frame(surface);
 }
 
 /// <summary>

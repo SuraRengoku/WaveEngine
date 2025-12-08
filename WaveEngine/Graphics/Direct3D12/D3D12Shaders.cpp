@@ -10,6 +10,7 @@ typedef struct compiledShader {
 	const u8*	byte_code;
 } const *compiledShaderPtr; 
 
+
 // each element in this array points to an offset withing the shaders blob.
 compiledShaderPtr engine_shaders[engineShader::id::count]{};
 
@@ -40,7 +41,7 @@ bool load_engine_shaders() {
 	}
 	assert(offset == size && index == engineShader::id::count);
 
-	return true;
+	return result;
 }
 
 } // namespace anonymous
@@ -51,7 +52,7 @@ bool initialize() {
 
 void shutdown() {
 	for (u32 i{ 0 }; i < engineShader::id::count; ++i) {
-		engine_shaders[i] = {};
+		engine_shaders[i] = nullptr;
 	}
 	shaders_blob.reset();
 }
