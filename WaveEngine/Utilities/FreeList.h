@@ -35,7 +35,7 @@ public:
 	constexpr u32 add(params&&... p) {
 		u32 id{ u32_invalid_id };
 		if (_next_free_index == u32_invalid_id) { // no free slots, expand space
-			id = (u32)_array.size();
+			id = static_cast<u32>(_array.size());
 			_array.emplace_back(std::forward<params>(p)...);
 		}
 		else { // reuse free slots

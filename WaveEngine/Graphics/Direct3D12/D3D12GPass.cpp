@@ -14,21 +14,22 @@ struct gpassRootParamIndices {
 	};
 };
 
-constexpr DXGI_FORMAT		main_buffer_format{ DXGI_FORMAT_R16G16B16A16_FLOAT };
-constexpr DXGI_FORMAT		depth_buffer_format{ DXGI_FORMAT_D32_FLOAT };
-constexpr MATH::u32v2		initial_dimensions{ 100, 100 };
+constexpr DXGI_FORMAT			main_buffer_format{ DXGI_FORMAT_R16G16B16A16_FLOAT };
+constexpr DXGI_FORMAT			depth_buffer_format{ DXGI_FORMAT_D32_FLOAT };
+constexpr MATH::u32v2			initial_dimensions{ 100, 100 };
 
-d3d12RenderTexture			gpass_main_buffer{}; // for colors
-d3d12DepthStencilBuffer		gpass_depth_buffer{};
-MATH::u32v2					dimensions{ initial_dimensions };
+d3d12RenderTexture				gpass_main_buffer{}; // for colors
+d3d12DepthStencilBuffer			gpass_depth_buffer{};
+MATH::u32v2						dimensions{ initial_dimensions };
+D3D12_RESOURCE_BARRIER_FLAGS	flags{};
 
-ID3D12RootSignature*		gpass_root_sig{ nullptr };
-ID3D12PipelineState*		gpass_pso{ nullptr };
+ID3D12RootSignature*			gpass_root_sig{ nullptr };
+ID3D12PipelineState*			gpass_pso{ nullptr };
 
 #if _DEBUG
-constexpr f32				clear_value[4]{ 0.5f, 0.5f, 0.5f, 1.0f };
+constexpr f32					clear_value[4]{ 0.5f, 0.5f, 0.5f, 1.0f };
 #else
-constexpr f32				clear_value[4]{ }; // black
+constexpr f32					clear_value[4]{ }; // black
 #endif
 
 bool create_buffers(MATH::u32v2 size) {
@@ -80,6 +81,8 @@ bool create_buffers(MATH::u32v2 size) {
 	NAME_D3D12_OBJECT(gpass_main_buffer.resource(), L"GPass Main Buffer");
 	NAME_D3D12_OBJECT(gpass_depth_buffer.resource(), L"GPass Depth Buffer");
 
+	flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
 	return gpass_main_buffer.resource() && gpass_depth_buffer.resource();
 }
 
@@ -90,7 +93,7 @@ bool create_gpass_pso_and_root_signature() {
 	using idx = gpassRootParamIndices;
 	D3DX::d3d12RootParameter parameters[idx::count]{};
 	parameters[0].as_constants(3, D3D12_SHADER_VISIBILITY_PIXEL, 1);
-	constexpr D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], idx::count };
+	const D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], idx::count };
 	gpass_root_sig = root_signature.create();
 	assert(gpass_root_sig);
 	NAME_D3D12_OBJECT(gpass_root_sig, L"GPass Root Signature");
@@ -176,15 +179,22 @@ void render(id3d12GraphicsCommandList* cmd_list, const d3d12FrameInfo& info) {
 }
 
 void add_transitions_for_depth_prepass(D3DX::d3d12ResourceBarrier& barriers) {
+	barriers.add(gpass_main_buffer.resource(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
 	barriers.add(gpass_depth_buffer.resource(),
 		D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, flags);
+
+	flags = D3D12_RESOURCE_BARRIER_FLAG_END_ONLY;
 }
 
 void add_transitions_for_gpass(D3DX::d3d12ResourceBarrier& barriers) {
 	barriers.add(gpass_main_buffer.resource(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		D3D12_RESOURCE_STATE_RENDER_TARGET);
+		D3D12_RESOURCE_STATE_RENDER_TARGET, 
+		D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
 	barriers.add(gpass_depth_buffer.resource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -194,6 +204,9 @@ void add_transitions_for_post_process(D3DX::d3d12ResourceBarrier& barriers) {
 	barriers.add(gpass_main_buffer.resource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	barriers.add(gpass_depth_buffer.resource(),
+		D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
 }
 
 

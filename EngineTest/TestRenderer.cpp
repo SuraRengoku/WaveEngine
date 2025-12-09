@@ -42,6 +42,7 @@ timeIt timer{};
 
 void destroy_render_surface(GRAPHICS::render_surface& surface);
 
+bool resized{ false };
 bool is_restarting{ false };
 
 bool test_initialize();
@@ -49,6 +50,8 @@ bool test_initialize();
 void test_shutdown();
 
 LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+	bool toggle_fullscreen{ false };
+
 	switch (msg) {
 	case WM_DESTROY: {
 		bool all_closed{ true };
@@ -68,25 +71,48 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		}
 		break;
 	}
+	case WM_SIZE:
+		resized = (wparam != SIZE_MINIMIZED);
+		break;
 	case WM_SYSCHAR: {
-		if(wparam == VK_RETURN && (HIWORD(lparam) & KF_ALTDOWN)) {
-			PLATFORM::window win{ PLATFORM::window_id{static_cast<ID::id_type>(GetWindowLongPtr(hwnd, GWLP_USERDATA))} };
-			win.set_fullscreen(!win.is_fullscreen());
-			return 0;
-		}
+		toggle_fullscreen = (wparam == VK_RETURN && (HIWORD(lparam) & KF_ALTDOWN));
+		//if(wparam == VK_RETURN && (HIWORD(lparam) & KF_ALTDOWN)) {
+		//	PLATFORM::window win{ PLATFORM::window_id{static_cast<ID::id_type>(GetWindowLongPtr(hwnd, GWLP_USERDATA))} };
+		//	win.set_fullscreen(!win.is_fullscreen());
+		//	return 0;
+		//}
 		break;
 	}
 	case WM_KEYDOWN: {
 		if (wparam == VK_ESCAPE) {
 			PostMessage(hwnd, WM_CLOSE, 0, 0);
 			return 0;
-		} else if (wparam == VK_F11)
-		{
+		} else if (wparam == VK_F11) {
 			is_restarting = true;
 			test_shutdown();
 			test_initialize();
 		}
 	}
+	default:
+		break;
+	}
+
+	if ((resized && GetAsyncKeyState(VK_LBUTTON) >= 0) || toggle_fullscreen) {
+		PLATFORM::window win{ PLATFORM::window_id{static_cast<ID::id_type>(GetWindowLongPtr(hwnd, GWLP_USERDATA))} };
+		for (u32 i{0}; i < _countof(_surfaces); ++i) {
+			if (win.get_id() == _surfaces[i].window.get_id()) {
+				if (toggle_fullscreen) {
+					win.set_fullscreen(!win.is_fullscreen());
+					// The default window procedure will play a system notification sound when pressing the Alt+Enter keyboard combination
+					// if WM_SYSCHAR is not handled. By returning 0 we can tell the system that we handled this message.
+					return 0;
+				} else {
+					_surfaces[i].surface.resize(win.width(), win.height());
+					resized = false;
+				}
+				break;
+			}
+		}
 	}
 
 	return DefWindowProc(hwnd, msg, wparam, lparam);
@@ -142,7 +168,7 @@ bool engineTest::initialize() {
 void engineTest::run() {
 	timer.begin();
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(10)); // too high frame rate may burn your graphic card!
+	// std::this_thread::sleep_for(std::chrono::milliseconds(10)); // too high frame rate may burn your graphic card!
 
 	for (u32 i{ 0 }; i < _countof(_surfaces); ++i) {
 		if (_surfaces[i].surface.is_valid()) {

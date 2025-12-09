@@ -32,7 +32,7 @@ bool create_pp_pso_and_root_signature() {
 	D3DX::d3d12RootParameter parameters[idx::count]{};
 	parameters[idx::root_constants].as_constants(1, D3D12_SHADER_VISIBILITY_PIXEL, 1);
 	parameters[idx::descriptor_table].as_descriptor_table(D3D12_SHADER_VISIBILITY_PIXEL, &range, 1);
-	constexpr D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], _countof(parameters) };
+	const D3DX::d3d12RootSignatureDesc root_signature{ &parameters[0], _countof(parameters) };
 	pp_root_sig = root_signature.create();
 	assert(pp_root_sig);
 	NAME_D3D12_OBJECT(pp_root_sig, L"Post-process FX Root Signature");

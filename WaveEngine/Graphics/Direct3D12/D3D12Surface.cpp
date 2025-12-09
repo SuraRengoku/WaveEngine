@@ -35,7 +35,7 @@ void d3d12Surface::create_swap_chain(IDXGIFactory7* factory, ID3D12CommandQueue*
 	desc.Width = _window.width();
 	desc.SampleDesc.Count = 1;									// one sample in a single pixel -> forbid MSAA
 	desc.SampleDesc.Quality = 0;								//
-	desc.Scaling = DXGI_SCALING_STRETCH;						// stretch graphcis to fill the whole window when resized
+	desc.Scaling = DXGI_SCALING_STRETCH;						// stretch graphics to fill the whole window when resized
 	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;			// drop buffer content after presenting to achieve higher performance
 	desc.Stereo = false;										// forbid VR
 
@@ -52,7 +52,7 @@ void d3d12Surface::create_swap_chain(IDXGIFactory7* factory, ID3D12CommandQueue*
 		_render_target_data[i].rtview = CORE::rtv_heap().allocate();
 	}
 
-	finalize(); // this funtion will be reused when we resize the swapchain, so it's better to be decoupled with create_swap_chain() method
+	finalize(); // this function will be reused when we resize the swap chain, so it's better to be decoupled with create_swap_chain() method
 }
 
 void d3d12Surface::present() const {
@@ -75,6 +75,7 @@ void d3d12Surface::finalize() {
 		desc.Format = _format;
 		desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
+		// here we reuse the allocated descriptors to put the new rtv's in
 		CORE::device()->CreateRenderTargetView(data.resource, &desc, data.rtview.cpu);
 	}
 
@@ -85,8 +86,8 @@ void d3d12Surface::finalize() {
 	assert(_window.width() == width && _window.height() == height);
 
 	// set viewport and scissor rect
-	_viewport = { 0.0f, 0.0f, (float)width, (float)height, 0.0, 1.0f };
-	_scissor_rect = { 0, 0, (s32)width, (s32)height };
+	_viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0, 1.0f };
+	_scissor_rect = { 0, 0, static_cast<s32>(width), static_cast<s32>(height) };
 }
 
 void d3d12Surface::release() {
@@ -100,7 +101,18 @@ void d3d12Surface::release() {
 }
 
 void d3d12Surface::resize() {
+	assert(_swap_chain);
+	// do not free descriptor heaps because we still need them after resizing
+	for (u32 i{0}; i < buffer_count; ++i) {
+		CORE::release(_render_target_data[i].resource);
+	}
+	const u32 flags{ _allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0ul };
+	DXCall(_swap_chain->ResizeBuffers(buffer_count, 0, 0, DXGI_FORMAT_UNKNOWN, flags));
+	_current_bb_index = _swap_chain->GetCurrentBackBufferIndex();
 
+	finalize();
+
+	DEBUG_OP(OutputDebugString(L"::D3D12 Surface Resized.\n"));
 }
 
 } 
