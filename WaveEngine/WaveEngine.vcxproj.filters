@@ -33,6 +33,14 @@
     <ClInclude Include="Graphics\Direct3D12\D3D12GPass.h" />
     <ClInclude Include="Graphics\Direct3D12\D3D12PostProcess.h" />
     <ClInclude Include="Platform\IncludeWindowCpp.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanCore.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanCommonHeaders.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanResources.h" />
+    <ClInclude Include="External\VulkanMemoryAllocator\include\vk_mem_alloc.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanHelpers.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanSurface.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanBase.h" />
+    <ClInclude Include="Utilities\ArrayRef.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\Entity.cpp" />
@@ -53,5 +61,11 @@
     <ClCompile Include="Graphics\Direct3D12\D3D12GPass.cpp" />
     <ClCompile Include="Graphics\Direct3D12\D3D12PostProcess.cpp" />
     <ClCompile Include="Platform\Window.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanCore.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanMemoryAllocator.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanHelpers.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanSurface.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanResources.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanBase.cpp" />
   </ItemGroup>
 </Project>

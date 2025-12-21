@@ -56,7 +56,7 @@ if (FAILED(x)) {									\
 #ifdef _DEBUG
 // set the name of the COM object and output a debug information 
 #define NAME_D3D12_OBJECT(obj, name) obj->SetName(name); OutputDebugString(L"::D3D12 Object Created: "); OutputDebugString(name); OutputDebugString(L"\n");
-// the indexed veriant will include the index in the name of the object
+// the indexed variant will include the index in the name of the object
 #define NAME_D3D12_OBJECT_INDEXED(obj, idx, name)		\
 {														\
 wchar_t full_name[128];									\

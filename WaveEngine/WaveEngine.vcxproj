@@ -1,5 +1,21 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <VulkanSDK Condition="'$(VULKAN_SDK)' != ''">$(VULKAN_SDK)</VulkanSDK>
+    <VulkanSDK Condition="'$(VULKAN_SDK)' == ''">C:\VulkanSDK\1.3.283.0</VulkanSDK>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LibraryPath>$(VULKAN_SDK)\Lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">
+    <LibraryPath>$(VULKAN_SDK)\Lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LibraryPath>$(VULKAN_SDK)\Lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
+    <LibraryPath>$(VULKAN_SDK)\Lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugEditor|x64">
       <Configuration>DebugEditor</Configuration>
@@ -30,6 +46,7 @@
     <ClInclude Include="EngineAPI\GameEntity.h" />
     <ClInclude Include="EngineAPI\ScriptComponent.h" />
     <ClInclude Include="EngineAPI\TransformComponent.h" />
+    <ClInclude Include="External\VulkanMemoryAllocator\include\vk_mem_alloc.h" />
     <ClInclude Include="Graphics\Direct3D12\D3D12CommonHeaders.h" />
     <ClInclude Include="Graphics\Direct3D12\D3D12Core.h" />
     <ClInclude Include="Graphics\Direct3D12\D3D12GPass.h" />
@@ -41,10 +58,19 @@
     <ClInclude Include="Graphics\Direct3D12\D3D12Surface.h" />
     <ClInclude Include="Graphics\GraphicsPlatformInterface.h" />
     <ClInclude Include="Graphics\Renderer.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanBase.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanCommonHeaders.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanCore.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanHelpers.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanInterface.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanQueue.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanResources.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanSurface.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanSwapChain.h" />
     <ClInclude Include="Platform\IncludeWindowCpp.h" />
     <ClInclude Include="Platform\Platform.h" />
     <ClInclude Include="Platform\PlatformTypes.h" />
+    <ClInclude Include="Utilities\ArrayRef.h" />
     <ClInclude Include="Utilities\Vector.h" />
     <ClInclude Include="Platform\Window.h" />
     <ClInclude Include="Utilities\FreeList.h" />
@@ -68,7 +94,15 @@
     <ClCompile Include="Graphics\Direct3D12\D3D12Shaders.cpp" />
     <ClCompile Include="Graphics\Direct3D12\D3D12Surface.cpp" />
     <ClCompile Include="Graphics\Renderer.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanBase.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanCore.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanHelpers.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanInterface.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanMemoryAllocator.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanQueue.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanResources.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanSurface.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanSwapChain.cpp" />
     <ClCompile Include="Platform\PlatformWin32.cpp" />
     <ClCompile Include="Platform\Window.cpp" />
   </ItemGroup>
@@ -143,13 +177,27 @@
       <CallingConvention>FastCall</CallingConvention>
       <AdditionalBMIDirectories>
       </AdditionalBMIDirectories>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common;$(SolutionDir)packages\VulkanMemoryAllocator\include;$(VulkanSDK)\Include;$(SolutionDir)packages\glm;$(SolutionDir)packages</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>
+        $(VulkanSDK)\Lib;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+        vulkan-1.lib;
+        %(AdditionalDependencies)
+      </AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>REM copy Vulkan Runtime DLL to output folder
+call $(ProjectDir)CopyVulkanRuntime.bat $(OutDir)
+      </Command>
+      <Message>Copying Vulkan Runtime...</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">
     <ClCompile>
@@ -170,13 +218,27 @@
       <CallingConvention>FastCall</CallingConvention>
       <AdditionalBMIDirectories>
       </AdditionalBMIDirectories>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common;$(SolutionDir)packages\VulkanMemoryAllocator\include;$(VulkanSDK)\Include;$(SolutionDir)packages\glm;$(SolutionDir)packages</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>
+        $(VulkanSDK)\Lib;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+        vulkan-1.lib;
+        %(AdditionalDependencies)
+      </AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>REM copy Vulkan Runtime DLL to output folder
+call $(ProjectDir)CopyVulkanRuntime.bat $(OutDir)
+      </Command>
+      <Message>Copying Vulkan Runtime...</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -198,13 +260,27 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <AdditionalBMIDirectories>
       </AdditionalBMIDirectories>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common;$(SolutionDir)packages\VulkanMemoryAllocator\include;$(VulkanSDK)\Include;$(SolutionDir)packages\glm;$(SolutionDir)packages</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>
+        $(VulkanSDK)\Lib;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+        vulkan-1.lib;
+        %(AdditionalDependencies)
+      </AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>REM copy Vulkan Runtime DLL to output folder
+call $(ProjectDir)CopyVulkanRuntime.bat $(OutDir)
+      </Command>
+      <Message>Copying Vulkan Runtime...</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
     <ClCompile>
@@ -226,13 +302,27 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <AdditionalBMIDirectories>
       </AdditionalBMIDirectories>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Common;$(SolutionDir)packages\VulkanMemoryAllocator\include;$(VulkanSDK)\Include;$(SolutionDir)packages\glm;$(SolutionDir)packages</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>
+        $(VulkanSDK)\Lib;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+        vulkan-1.lib;
+        %(AdditionalDependencies)
+      </AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>REM copy Vulkan Runtime DLL to output folder
+call $(ProjectDir)CopyVulkanRuntime.bat $(OutDir)
+      </Command>
+      <Message>Copying Vulkan Runtime...</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

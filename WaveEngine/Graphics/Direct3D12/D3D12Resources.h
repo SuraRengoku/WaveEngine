@@ -29,7 +29,7 @@ public:
 
 	DISABLE_COPY_AND_MOVE(descriptorHeap); 
 	// we delete copy constructor and move constructor because:
-	// 1. std::mutex can not be copyed or moved
+	// 1. std::mutex can not be copied or moved
 	// 2. COM pointer hold a reference count
 	// 3. descriptorHandle hold a reversing pointer of descriptorHeap
 	// 4. need to move #frame_buffer_count vectors

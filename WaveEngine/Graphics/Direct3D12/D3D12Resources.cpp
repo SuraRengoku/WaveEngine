@@ -13,23 +13,23 @@ namespace WAVEENGINE::GRAPHICS::D3D12 {
 // DSV					no					unlimited								16 / 32
 
 // rendering pipeline
-// ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-// ©¦ Shader Stages										 ©¦
-// ©¦ - Vertex Shader      ¡û CBV / SRV / UAV accessible   ©¦
-// ©¦ - Pixel Shader       ¡û CBV / SRV / UAV accessible   ©¦
-// ©¦ - Compute Shader     ¡û CBV / SRV / UAV accessible   ©¦
-// ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
-//							¡ı
-// ©°©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©´
-// ©¦ Output Merger (fixed function)											©¦
-// ©¦ - RTV(render target)     ¡û written by pipeline, not a shader resource	©¦
-// ©¦ - DSV(depth + stencil)   ¡û written by pipeline, not a shader resource	©¦
-// ©¸©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¼
+// â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+// â”‚ Shader Stages										 â”‚
+// â”‚ - Vertex Shader      â† CBV / SRV / UAV accessible   â”‚
+// â”‚ - Pixel Shader       â† CBV / SRV / UAV accessible   â”‚
+// â”‚ - Compute Shader     â† CBV / SRV / UAV accessible   â”‚
+// â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//							â†“
+// â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+// â”‚ Output Merger (fixed function)											â”‚
+// â”‚ - RTV(render target)     â† written by pipeline, not a shader resource	â”‚
+// â”‚ - DSV(depth + stencil)   â† written by pipeline, not a shader resource	â”‚
+// â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
 bool descriptorHeap::initialize(u32 capacity, bool is_shader_visible) {
 	std::lock_guard lock{ _mutex };
 	assert(capacity && capacity < D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2);
-	// for sampler type the capacity limitation is much more strict because sampler is a hardware resource
+	// for sampler type the capacity limitation is much stricter because sampler is a hardware resource
 	assert(!(_type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER && capacity > D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE));
 	if (_type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV || _type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
 		is_shader_visible = false;
@@ -55,7 +55,7 @@ bool descriptorHeap::initialize(u32 capacity, bool is_shader_visible) {
 
 	for (u32 i{ 0 }; i < capacity; ++i) {
 		_free_handles[i] = i;
-	} // initilially, every slot is free.
+	} // initially, every slot is free.
 
 	DEBUG_OP(for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
 		assert(_deferred_free_indices[i].empty());

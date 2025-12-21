@@ -1,6 +1,9 @@
 # Visual Studio
 .vs/
 
+# Rider
+.idea/
+
 # Build output
 x64/
 Debug/

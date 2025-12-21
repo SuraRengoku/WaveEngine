@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonHeaders.h"
 #include "Graphics\GraphicsPlatformInterface.h"
+#include "VulkanCore.h"
 
 namespace WAVEENGINE::GRAPHICS{
 

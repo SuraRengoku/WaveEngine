@@ -136,7 +136,7 @@ bool test_initialize() {
 			return false;
 	}
 
-	if (!GRAPHICS::initialize(GRAPHICS::graphics_platform::Direct3D12)) return false;
+	if (!GRAPHICS::initialize(GRAPHICS::graphics_platform::Vulkan)) return false;
 
 	PLATFORM::window_init_info info[]{
 		{&win_proc, nullptr, L"Render window 1", 100, 100, 400, 800},
@@ -168,7 +168,7 @@ bool engineTest::initialize() {
 void engineTest::run() {
 	timer.begin();
 
-	// std::this_thread::sleep_for(std::chrono::milliseconds(10)); // too high frame rate may burn your graphic card!
+	std::this_thread::sleep_for(std::chrono::milliseconds(10)); // too high frame rate may burn your graphic card!
 
 	for (u32 i{ 0 }; i < _countof(_surfaces); ++i) {
 		if (_surfaces[i].surface.is_valid()) {

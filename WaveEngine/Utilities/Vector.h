@@ -23,6 +23,12 @@ public:
 		resize(count, value);
 	}
 
+	constexpr vector(std::initializer_list<T> init) {
+		reserve(init.size());
+		for (const auto& item : init)
+			emplace_back(item);
+	}
+
 #ifdef _WIN64
 	template<typename it, typename = std::enable_if_t<std::_Is_iterator_v<it>>>
 #else

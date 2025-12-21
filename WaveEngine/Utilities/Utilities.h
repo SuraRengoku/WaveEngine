@@ -52,3 +52,4 @@ namespace WAVEENGINE::UTL {
 }
 
 #include "FreeList.h"
+#include "ArrayRef.h"

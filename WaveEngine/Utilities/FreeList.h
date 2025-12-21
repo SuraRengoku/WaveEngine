@@ -22,10 +22,10 @@ public:
 	~freeList() { 
 		assert(!_size);
 
-		// if we use std::vector, _array will call ~T() when the destructing the vector it self.
+		// if we use std::vector, _array will call ~T() when the destructing the vector itself.
 		// However, the item.~T() has already been called in remove(u32 id) function, which will cause duplicate destructing.
 		// for items that have already been destructed, if they had pointers, there might be addresses left on the memory.
-		// When std::vector call desctructor, it will try destruct these "ghost" object again.
+		// When std::vector call destructor, it will try destruct these "ghost" object again.
 #if USE_STL_VECTOR
 		memset(_array.data(), 0, _array.size() * sizeof(T));
 #endif
@@ -52,10 +52,10 @@ public:
 		assert(id < _array.size() && !already_removed(id));
 		T& item{ _array[id] };
 		item.~T(); 
-		// this step may destory vptr and dangling pointer
+		// this step may destroy virtual pointer and dangling pointer
 		DEBUG_OP(memset(std::addressof(_array[id]), 0xcc, sizeof(T)));
 		// set the first 4 bytes as the _next_free_index for next allocation
-		// this step will overwrite the memory. if T contains pointer, vptr, smart pointer etc., they will be covered by u32 data
+		// this step will overwrite the memory. if T contains pointer, virtual pointer, smart pointer etc., they will be covered by u32 data
 		*(u32 *const)std::addressof(_array[id]) = _next_free_index; 
 		// set the _next_free_index as current removed id for 
 		// 1. if next step is removal, fill the _next_free_index into the first bytes of next removed slot, then iterate

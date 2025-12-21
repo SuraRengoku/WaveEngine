@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding" addBOMForNewFiles="with BOM">
+    <file url="file://$PROJECT_DIR$/WaveEngine/Graphics/Direct3D12/D3D12Resources.cpp" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/WaveEngine/Platform/PlatformWin32.cpp" charset="UTF-8" />
+  </component>
+</project>

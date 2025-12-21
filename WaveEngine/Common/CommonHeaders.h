@@ -9,6 +9,9 @@
 #include <typeinfo>
 #include <memory>
 #include <unordered_map>
+#include <map>
+#include <unordered_set>
+#include <set>
 #include <mutex>
 
 #if defined(_WIN64)

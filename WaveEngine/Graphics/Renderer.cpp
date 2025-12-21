@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "GraphicsPlatformInterface.h"
 #include "Direct3D12\D3D12Interface.h"
+#include "Vulkan\VulkanInterface.h"
 
 namespace WAVEENGINE::GRAPHICS {
 
@@ -22,6 +23,7 @@ bool set_platform_interface(graphics_platform platform) {
 	case graphics_platform::Direct3D11:
 		break;
 	case graphics_platform::Vulkan:
+		VULKAN::get_platform_interface(gfx);
 		break;
 	case graphics_platform::OpenGL:
 		break;
@@ -36,7 +38,21 @@ bool set_platform_interface(graphics_platform platform) {
 } // anonymous namespace
 
 bool initialize(graphics_platform platform) {
-	return set_platform_interface(platform) && gfx.initialize();
+#if USE_VULKAN
+	if (platform == graphics_platform::Vulkan) {
+		set_platform_interface(graphics_platform::Vulkan);
+		if (!gfx.initialize()) {
+			OutputDebugStringA("Vulkan initialization failed, falling back to D3D12\n");
+			return set_platform_interface(graphics_platform::Direct3D12) && gfx.initialize();
+		}
+		return true;
+	}
+#elif USE_D3D12
+	if (platform == graphics_platform::Direct3D12) {
+		return set_platform_interface(platform) && gfx.initialize();
+	}
+#endif
+	return false;
 }
 
 void shutdown() {

@@ -49,8 +49,8 @@ public:
 
 	void resize();
 
-	constexpr u32 width() const { return (u32)_viewport.Width; }
-	constexpr u32 height() const { return (u32)_viewport.Height; }
+	constexpr u32 width() const { return static_cast<u32>(_viewport.Width); }
+	constexpr u32 height() const { return static_cast<u32>(_viewport.Height); }
 	constexpr ID3D12Resource* const back_buffer() const { return _render_target_data[_current_bb_index].resource; }
 	constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv() const { return _render_target_data[_current_bb_index].rtview.cpu; }
 	constexpr const D3D12_VIEWPORT& viewport() const { return _viewport; }

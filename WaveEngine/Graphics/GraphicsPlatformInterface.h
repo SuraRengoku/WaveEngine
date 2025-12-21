@@ -6,6 +6,15 @@
 
 namespace WAVEENGINE::GRAPHICS {
 
+enum class GFXInitError {
+	Success,
+	NoPhysicalDevice, 
+	VulkanNotSupported,
+	DriverNotFound,
+
+	count
+};
+
 struct platform_interface {
 	bool(*initialize)(void);
 	void(*shutdown)(void);
