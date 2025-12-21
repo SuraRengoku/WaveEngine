@@ -23,7 +23,7 @@ Key goals:
 ## Features
 ✅ Core engine framework  
 ✅ Window and input system  
-✅ Rendering context abstraction (D3D12)  
+✅ Rendering context abstraction (D3D12 / Vulkan)  
 ⏳ Material and shader system  
 ⏳ PBR rendering pipeline  
 ⏳ Real-time shadow mapping  
@@ -50,7 +50,7 @@ WaveEngine/
 · Visual Studio 2022  
 · C++17 or later  
 · Microsoft Graphics Tools / RenderDoc  
-· Direct 12 (D11 / Vulkan / OpenGL will be supported later!)
+· Direct 12，Vulkan (D11 / OpenGL will be supported later!)
 
 ## Author
 waiting to be revealed 😜
