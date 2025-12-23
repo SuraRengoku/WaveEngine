@@ -34,3 +34,7 @@ Thumbs.db
 
 # NuGet Packages
 *.nupkg
+
+# VMA Packages
+packages/VulkanMemoryAllocator/docs/
+packages/VulkanMemoryAllocator/media/
