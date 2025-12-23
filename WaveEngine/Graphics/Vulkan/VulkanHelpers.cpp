@@ -2,13 +2,13 @@
 
 namespace  WAVEENGINE::GRAPHICS::VULKAN::VKX {
 
-u32 rateDeviceSuitability(const VkPhysicalDevice& device) {
+u32 rateDeviceSuitability(const VkPhysicalDevice& physical_device) {
     VkPhysicalDeviceProperties deviceProperties;
-    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    vkGetPhysicalDeviceProperties(physical_device, &deviceProperties);
 
     // for texture compressing, multi viewport rendering
     VkPhysicalDeviceFeatures deviceFeatures;
-    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+    vkGetPhysicalDeviceFeatures(physical_device, &deviceFeatures);
 
     u32 score = 0;
     // Discrete GPUs have a significant performance advantage
@@ -22,9 +22,9 @@ u32 rateDeviceSuitability(const VkPhysicalDevice& device) {
     return deviceFeatures.samplerAnisotropy == VK_TRUE ? score : 0;
 }
 
-VkSampleCountFlagBits getMaxUsableSampleCount(const VkPhysicalDevice& device) {
+VkSampleCountFlagBits getMaxUsableSampleCount(const VkPhysicalDevice& physical_device) {
     VkPhysicalDeviceProperties physicalDeviceProperties;
-    vkGetPhysicalDeviceProperties(device, &physicalDeviceProperties);
+    vkGetPhysicalDeviceProperties(physical_device, &physicalDeviceProperties);
 
     VkSampleCountFlags counts = std::min(
     physicalDeviceProperties.limits.framebufferColorSampleCounts,
@@ -39,12 +39,12 @@ VkSampleCountFlagBits getMaxUsableSampleCount(const VkPhysicalDevice& device) {
     return VK_SAMPLE_COUNT_1_BIT;
 }
 
-QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& device) {
+QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& physical_device) {
     QueueFamilyIndices indices;
     u32 queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queueFamilyCount, nullptr);
     UTL::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queueFamilyCount, queueFamilies.data());
 
     for (u32 i{0}; i < queueFamilyCount; ++i) {
         const auto& queueFamily = queueFamilies[i];
@@ -73,12 +73,12 @@ QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& device) {
     return indices;
 }
 
-QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& device, const VkSurfaceKHR& surface) {
+QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& physical_device, const VkSurfaceKHR& surface) {
     QueueFamilyIndices indices;
     u32 queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queueFamilyCount, nullptr);
     UTL::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queueFamilyCount, queueFamilies.data());
 
     for (u32 i{0}; i < queueFamilyCount; ++i) {
         const auto& queueFamily = queueFamilies[i];
@@ -89,7 +89,7 @@ QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& device, const VkSur
         VkBool32 presentSupport = false;
         // check if the i-queue in device support the surface
         // which is important to make sure before setting swap chain
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &presentSupport);
         if (presentSupport) {
             indices.presentFamily = static_cast<int>(i);
         }
@@ -111,6 +111,18 @@ QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& device, const VkSur
     }
 
     return indices;
+}
+
+VkPhysicalDeviceProperties findPhysicalDeviceProperties(const VkPhysicalDevice& physical_device) {
+    VkPhysicalDeviceProperties properties;
+    vkGetPhysicalDeviceProperties(physical_device, &properties);
+    return properties;
+}
+
+VkPhysicalDeviceMemoryProperties findPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physical_device) {
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &memoryProperties);
+    return memoryProperties;
 }
 
 }

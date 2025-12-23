@@ -10,7 +10,7 @@ public:
 	constexpr static u32 buffer_count{ 3 };
 	constexpr static DXGI_FORMAT default_back_buffer_format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB };
 
-	explicit d3d12Surface(PLATFORM::window window) : _window(window) {
+	explicit d3d12Surface(const PLATFORM::window& window) : _window(window) {
 		assert(_window.handle());
 	}
 

@@ -49,10 +49,12 @@ constexpr u32 frame_buffer_count{ 3 };
 #endif
 
 inline void debug_output(const char* message) {
+#if _DEBUG
 #ifdef _WIN32
 	OutputDebugStringA(message);
 #else
 	std::cerr << message;
+#endif
 #endif
 }
 
@@ -151,5 +153,12 @@ inline void debug_output(const char* message) {
 #define NAME_VK_OBJECT_INDEXED(device, obj, idx, type, name)
 
 #endif
+
+#define VK_MOVE_PTR(ptr) ptr = other.ptr; other.ptr = VK_NULL_HANDLE;
+#define VK_MOVE_VALUE(val) val = other.val; other.val = 0;
+#define VK_DEFINE_PTR_TYPE_OPERATOR(ptr) operator decltype(ptr)() const { return ptr; }
+#define VK_DEFINE_ADDRESS_FUNCTION(ptr) const decltype(ptr)* Address() const { return &ptr; }
+
+#define VK_DESTROY_PTR_BY(Func, device, ptr) if(ptr) { Func(device, ptr, nullptr); ptr = VK_NULL_HANDLE; }
 
 #include "VulkanHelpers.h"

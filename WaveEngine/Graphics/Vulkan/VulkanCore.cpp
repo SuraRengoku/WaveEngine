@@ -351,6 +351,10 @@ void shutdown() {
 	
 }
 
+VkPhysicalDevice physical_device() {
+	return vk_physicalDevice;
+}
+
 VkDevice device() {
 	return vk_device;
 }

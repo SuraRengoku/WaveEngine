@@ -39,6 +39,7 @@ constexpr void deferred_release(T*& resource) {
 	}
 }
 
+VkPhysicalDevice physical_device();
 VkDevice device();
 
 VkQueue graphics_queue();

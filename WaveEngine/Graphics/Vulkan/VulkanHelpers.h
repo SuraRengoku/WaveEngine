@@ -63,12 +63,16 @@ struct QueueFamilyIndices {
 	}
 };
 
-u32 rateDeviceSuitability(const VkPhysicalDevice& device);
+u32 rateDeviceSuitability(const VkPhysicalDevice& physical_device);
 
-VkSampleCountFlagBits getMaxUsableSampleCount(const VkPhysicalDevice& device);
+VkSampleCountFlagBits getMaxUsableSampleCount(const VkPhysicalDevice& physical_device);
 
-QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& device);
+QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& physical_device);
 
-QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
+QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& physical_device, const VkSurfaceKHR& surface);
+
+VkPhysicalDeviceProperties findPhysicalDeviceProperties(const VkPhysicalDevice& physical_device);
+
+VkPhysicalDeviceMemoryProperties findPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physical_device);
 
 }
