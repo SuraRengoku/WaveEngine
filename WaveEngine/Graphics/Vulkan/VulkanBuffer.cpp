@@ -23,7 +23,7 @@ VkMemoryAllocateInfo vulkanBuffer::memoryAllocateInfo(VkMemoryPropertyFlags desi
 
 VkResult vulkanBuffer::bindMemory(VkDeviceMemory device_memory, VkDeviceSize memoryOffset) const {
     if (VkResult result = vkBindBufferMemory(CORE::device(), _buffer, device_memory, memoryOffset)) {
-        debug_output("::VULKAN: Failed to attach the memory\n");
+        debug_output("::VULKAN: Failed to attach buffer to memory\n");
         return result;
     }
     return VK_SUCCESS;

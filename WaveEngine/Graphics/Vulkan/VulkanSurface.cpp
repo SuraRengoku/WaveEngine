@@ -2,7 +2,7 @@
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
-bool vulkanSurface::create_surface(VkInstance instance) {
+bool vulkanSurface::create(const instanceContext& ctx) {
 #ifdef _WIN32
     HWND hwnd{ static_cast<HWND>(_window.handle()) };
 
@@ -12,7 +12,7 @@ bool vulkanSurface::create_surface(VkInstance instance) {
     createInfo.hinstance = GetModuleHandle(nullptr);
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    VKCall(vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &_surface), "::VULKAN: failed to create a Win32 surface");
+    VKCall(vkCreateWin32SurfaceKHR(ctx._instance, &createInfo, ctx._allocator, &_surface), "::VULKAN: failed to create a Win32 surface");
 #elif defined(__APPLE__)
     VkMetalSurfaceCreateInfoEXT createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
@@ -21,6 +21,8 @@ bool vulkanSurface::create_surface(VkInstance instance) {
     createInfo.flags = 0;
     VKCall(vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface), "::VULKAN: failed to create a Metal surface");
 #elif defined(__linux__)
+
+    // TODO
 
 #elif defined(__ANDROID__)
     VkAndroidSurfaceCreateInfoKHR createInfo{};
@@ -36,19 +38,10 @@ bool vulkanSurface::create_surface(VkInstance instance) {
     return true;
 }
 
-void vulkanSurface::present() const {
-
-}
-
-void vulkanSurface::resize() {
-
-}
-
-void vulkanSurface::finalize() {
-
-}
-
-void vulkanSurface::release() {
-
+void vulkanSurface::destroy(const instanceContext& ctx) {
+    if (_surface != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(ctx._instance, _surface, ctx._allocator);
+        _surface = VK_NULL_HANDLE;
+    }
 }
 }

@@ -1,7 +1,6 @@
 ﻿#include "VulkanMemory.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
-
 /**
  * @brief adjust the range of non-host coherent memory when mapping memory
  * @param size mapping size
@@ -130,6 +129,33 @@ VkResult vulkanBufferMemory::create(VkBufferCreateInfo& createInfo, VkMemoryProp
         (result = bindMemory());
     return result;
 }
+
+VkResult vulkanImageMemory::allocateMemory(VkMemoryPropertyFlags desiredMemoryProperties) {
+    VkMemoryAllocateInfo allocateInfo = vulkanImage::memoryAllocateInfo(desiredMemoryProperties);
+    if (allocateInfo.memoryTypeIndex >= VKX::findPhysicalDeviceMemoryProperties(CORE::physical_device()).memoryTypeCount) {
+        return VK_RESULT_MAX_ENUM;
+    }
+    return vulkanDeviceMemory::allocate(allocateInfo);
+}
+
+VkResult vulkanImageMemory::bindMemory() {
+    if (VkResult result = vulkanImage::bindMemory(deviceMemory())) {
+        return result;
+    }
+    areBound = false;
+    return VK_SUCCESS;
+}
+
+VkResult vulkanImageMemory::create(VkImageCreateInfo& createInfo, VkMemoryPropertyFlags desiredMemoryProperties) {
+    VkResult result;
+    false ||
+        (result = createImage(createInfo)) ||
+        (result = allocateMemory(desiredMemoryProperties)) ||
+        (result = bindMemory());
+    return result;
+
+}
+
 }
 
 

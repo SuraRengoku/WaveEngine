@@ -61,8 +61,11 @@
     <ClInclude Include="Graphics\Vulkan\VulkanBase.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanBuffer.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanCommonHeaders.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanContext.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanCore.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanFormat.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanHelpers.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanImage.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanInterface.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanMemory.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanQueue.h" />
@@ -98,8 +101,10 @@
     <ClCompile Include="Graphics\Renderer.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanBase.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanBuffer.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanContext.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanCore.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanHelpers.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanImage.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanInterface.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanMemory.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanMemoryAllocator.cpp" />

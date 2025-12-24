@@ -2,6 +2,7 @@
 #include "VulkanCommonHeaders.h"
 #include "VulkanCore.h"
 #include "VulkanBuffer.h"
+#include "VulkanImage.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -49,8 +50,8 @@ public:
 
 protected:
     class {
-        friend class bufferMemory;
-        friend class imageMemory;
+        friend class vulkanBufferMemory;
+        friend class vulkanImageMemory;
         bool value = false;
         operator bool() const { return value; }
         auto& operator=(bool value) { this->value = value; return *this; }
@@ -70,7 +71,7 @@ public:
     }
     ~vulkanBufferMemory() { areBound = false; }
 
-    //
+    // Getter
     VkBuffer buffer() const { return static_cast<const vulkanBuffer&>(*this); }
     const VkBuffer* addressOfBuffer() const { return vulkanBuffer::Address(); }
     VkDeviceMemory deviceMemory() const { return static_cast<const vulkanDeviceMemory&>(*this); }
@@ -95,6 +96,40 @@ public:
     VkResult bindMemory();
 
     VkResult create(VkBufferCreateInfo& createInfo, VkMemoryPropertyFlags desiredMemoryProperties);
+};
+
+class vulkanImageMemory : vulkanImage, vulkanDeviceMemory {
+public:
+    vulkanImageMemory() = default;
+    DISABLE_COPY(vulkanImageMemory);
+    vulkanImageMemory(VkImageCreateInfo& createInfo, VkMemoryPropertyFlags desiredMemoryProperties) {
+        create(createInfo, desiredMemoryProperties);
+    }
+    vulkanImageMemory(vulkanImageMemory&& other) noexcept : vulkanImage(std::move(other)), vulkanDeviceMemory(std::move(other)) {
+        areBound = other.areBound;
+        other.areBound = false;
+    }
+    ~vulkanImageMemory() { areBound = false; }
+
+    // Getter
+    VkImage image() const { return static_cast<const vulkanImage&>(*this); }
+    const VkImage* addressOfImage() const { return vulkanImage::Address(); }
+    VkDeviceMemory deviceMemory() const { return static_cast<const vulkanDeviceMemory&>(*this); }
+    const VkDeviceMemory* addressOfDeviceMemory() const { return vulkanDeviceMemory::Address(); }
+
+    bool are_bound() const { return areBound; }
+    using vulkanDeviceMemory::allocationSize;
+    using vulkanDeviceMemory::memoryProperties;
+
+    VkResult createImage(VkImageCreateInfo& createInfo) {
+        return vulkanImage::create(createInfo);
+    }
+
+    VkResult allocateMemory(VkMemoryPropertyFlags desiredMemoryProperties);
+
+    VkResult bindMemory();
+
+    VkResult create(VkImageCreateInfo& createInfo, VkMemoryPropertyFlags desiredMemoryProperties);
 };
 
 }

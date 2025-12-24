@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <set>
 #include <mutex>
+#include <cstdio>
 
 #if defined(_WIN64)
 #include <DirectXMath.h>

@@ -3,6 +3,7 @@
 #include "VulkanResources.h"
 #include <map>
 #include "VulkanQueue.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 

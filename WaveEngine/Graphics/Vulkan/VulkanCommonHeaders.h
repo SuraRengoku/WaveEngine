@@ -3,8 +3,6 @@
 #include "CommonHeaders.h"
 #include "Graphics\Renderer.h"
 #include "Platform\Window.h"
-#include <vulkan/vulkan.h>
-#include <iostream>
 
 #ifdef _WIN32
 #define VK_USE_PLATFORM_WIN32_KHR
@@ -14,6 +12,9 @@
 #include <Windows.h>
 #pragma comment(lib, "vulkan-1.lib")
 #endif
+
+#include <vulkan/vulkan.h>
+#include <iostream>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm.hpp>
