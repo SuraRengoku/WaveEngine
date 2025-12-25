@@ -2,17 +2,22 @@
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
-VkMemoryAllocateInfo vulkanImage::memoryAllocateInfo(VkMemoryPropertyFlags desiredMemoryProperties) const {
+void vulkanImage::setDevice(VkDevice device) {
+    assert(_device == VK_NULL_HANDLE);
+    _device = device;
+}
+
+VkMemoryAllocateInfo vulkanImage::memoryAllocateInfo(VkPhysicalDevice physical_device, VkMemoryPropertyFlags desiredMemoryProperties) const {
     VkMemoryAllocateInfo memoryAllocateInfo{};
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     VkMemoryRequirements memoryRequirements;
-    vkGetImageMemoryRequirements(CORE::device(), _image, &memoryRequirements);
+    vkGetImageMemoryRequirements(_device, _image, &memoryRequirements);
     memoryAllocateInfo.allocationSize = memoryRequirements.size;
 
-    auto getMemoryTypeIndex = [](u32 memoryTypeBits, VkMemoryPropertyFlags desiredMemoryProperties) {
-        const auto& physicalDeviceMemoryProperties = VKX::findPhysicalDeviceMemoryProperties(CORE::physical_device());
-        for (u32 i = 0; i < physicalDeviceMemoryProperties.memoryTypeCount; ++i) {
-            if (memoryTypeBits & 1 << i && (physicalDeviceMemoryProperties.memoryTypes[i].propertyFlags & desiredMemoryProperties) == desiredMemoryProperties) {
+    auto getMemoryTypeIndex = [&](u32 memoryTypeBits, VkMemoryPropertyFlags desiredMemoryProperties) -> u32 {
+        const auto& physicalDeviceMemoryProperties = VKX::findPhysicalDeviceMemoryProperties(physical_device);
+        for (u32 i = 0; i < physicalDeviceMemoryProperties.memoryProperties.memoryTypeCount; ++i) {
+            if (memoryTypeBits & 1 << i && (physicalDeviceMemoryProperties.memoryProperties.memoryTypes[i].propertyFlags & desiredMemoryProperties) == desiredMemoryProperties) {
                 return i;
             }
         }
@@ -28,7 +33,8 @@ VkMemoryAllocateInfo vulkanImage::memoryAllocateInfo(VkMemoryPropertyFlags desir
 }
 
 VkResult vulkanImage::bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memoryOffset) const {
-    if (VkResult result = vkBindImageMemory(CORE::device(), _image, deviceMemory, memoryOffset)) {
+    assert(_device != VK_NULL_HANDLE);
+    if (VkResult result = vkBindImageMemory(_device, _image, deviceMemory, memoryOffset)) {
         debug_output("::VULKAN: Failed to attach image to memory\n");
         return result;
     }
@@ -36,17 +42,23 @@ VkResult vulkanImage::bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memor
 }
 
 VkResult vulkanImage::create(VkImageCreateInfo& createInfo) {
+    assert(_device != VK_NULL_HANDLE);
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    if (VkResult result = vkCreateImage(CORE::device(), &createInfo, nullptr, &_image)) {
+    if (VkResult result = vkCreateImage(_device, &createInfo, nullptr, &_image)) {
         debug_output("::VULKAN: Failed to create an image\n");
         return result;
     }
     return VK_SUCCESS;
 }
 
-VkResult vulkanImageView::create(VkImageViewCreateInfo& createInfo) {
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    if (VkResult result = vkCreateImageView(CORE::device(), &createInfo, nullptr, &_image_view)) {
+void vulkanImageView::setDevice(VkDevice device) {
+    assert(_device == VK_NULL_HANDLE);
+    _device = device;
+}
+
+VkResult vulkanImageView::create(const VkImageViewCreateInfo& createInfo) {
+    assert(_device != VK_NULL_HANDLE);
+    if (VkResult result = vkCreateImageView(_device, &createInfo, nullptr, &_image_view)) {
         debug_output("::VULKAN: Failed to create an image view\n");
         return result;
     }
@@ -56,6 +68,7 @@ VkResult vulkanImageView::create(VkImageViewCreateInfo& createInfo) {
 VkResult vulkanImageView::create(VkImage image, VkImageViewType viewType, VkFormat format,
     const VkImageSubresourceRange& subresourceRange, VkImageViewCreateFlags flags) {
     VkImageViewCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.image = image;
     createInfo.format = format;
     createInfo.subresourceRange = subresourceRange;

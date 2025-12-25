@@ -157,6 +157,7 @@ inline void debug_output(const char* message) {
 
 #define VK_MOVE_PTR(ptr) ptr = other.ptr; other.ptr = VK_NULL_HANDLE;
 #define VK_MOVE_VALUE(val) val = other.val; other.val = 0;
+#define VK_MOVE_STRUCT(str) str = other.str; other.str = {};
 #define VK_DEFINE_PTR_TYPE_OPERATOR(ptr) operator decltype(ptr)() const { return ptr; }
 #define VK_DEFINE_ADDRESS_FUNCTION(ptr) const decltype(ptr)* Address() const { return &ptr; }
 

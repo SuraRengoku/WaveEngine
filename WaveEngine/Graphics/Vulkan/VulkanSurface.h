@@ -33,8 +33,8 @@ public:
 	bool create(const instanceContext& ctx);
 	void destroy(const instanceContext& ctx);
 
-	[[nodiscard]] constexpr VkSurfaceKHR surface() const { return _surface; }
-	[[nodiscard]] constexpr PLATFORM::window window() const { return _window; }
+	[[nodiscard]] constexpr const VkSurfaceKHR& surface() const { return _surface; }
+	[[nodiscard]] constexpr const PLATFORM::window& window() const { return _window; }
 
 private:
 	VkSurfaceKHR			_surface{ VK_NULL_HANDLE };

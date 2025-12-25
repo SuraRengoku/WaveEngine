@@ -1,5 +1,6 @@
 #include "VulkanCore.h"
 #include "VulkanSurface.h"
+#include "VulkanSwapChain.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::CORE {
 
@@ -8,8 +9,9 @@ namespace {
 vulkanContext						vk_ctx;
 
 using surfaceCollection = UTL::freeList<vulkanSurface>;
-
+using swapchainCollection = UTL::freeList<vulkanSwapChain>;
 surfaceCollection					surfaces;
+swapchainCollection					swapchains;
 
 descriptorPool						immutable_pool{};								// never update
 descriptorPool						per_scene_pool{};								// infrequently update
@@ -98,6 +100,9 @@ void set_deferred_releases_flag() {
 surface create_surface(PLATFORM::window window) {
 	surface_id id{ surfaces.add(window) };
 	surfaces[id].create(vk_ctx.instance_context());
+
+	swapchain_id sc_id { swapchains.add(vk_ctx.physical_device(), vk_ctx.device(), surfaces[id].surface(), window)};
+	swapchains[sc_id].create();
 
 	// validate Present Support
 	VKX::QueueFamilyIndices indices = VKX::findQueueFamilies(vk_ctx.physical_device(), surfaces[id].surface());

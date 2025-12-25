@@ -3,32 +3,34 @@
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
-void vulkanSwapChain::querySwapChainSupport() {
+DETAIL::SwapChainSupportDetails vulkanSwapChain::querySwapChainSupport() const {
+    DETAIL::SwapChainSupportDetails details{};
     assert(_physical_device);
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physical_device, _surface, &_chain_support_details.capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physical_device, _surface, &details.capabilities);
 
     u32 formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(_physical_device, _surface, &formatCount, nullptr);
     if (formatCount != 0) {
-        _chain_support_details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(_physical_device, _surface, &formatCount, _chain_support_details.formats.data());
+        details.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(_physical_device, _surface, &formatCount, details.formats.data());
     }
 
     u32 presentModeCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(_physical_device, _surface, &presentModeCount, nullptr);
     if (presentModeCount != 0) {
-        _chain_support_details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(_physical_device, _surface, &presentModeCount, _chain_support_details.presentModes.data());
+        details.presentModes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(_physical_device, _surface, &presentModeCount, details.presentModes.data());
     }
+
+    return details;
 }
 
-void vulkanSwapChain::chooseSwapSurfaceFormat() {
-    const auto& availableFormats = _chain_support_details.formats;
-    if (availableFormats.size() == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED) {
+void vulkanSwapChain::chooseSwapSurfaceFormat(const UTL::vector<VkSurfaceFormatKHR>& surfaceFormats) {
+    if (surfaceFormats.size() == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
         _surface_format = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
         return;
     }
-    for (const auto& availableFormat : availableFormats) {
+    for (const auto& availableFormat : surfaceFormats) {
         if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM &&
             availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             _surface_format = availableFormat;
@@ -37,13 +39,12 @@ void vulkanSwapChain::chooseSwapSurfaceFormat() {
     }
     // we can still score each available format to choose the best one
     // however, sometimes the first one is no matter a good choice
-    _surface_format = availableFormats[0];
+    _surface_format = surfaceFormats[0];
 }
 
-void vulkanSwapChain::chooseSwapPresentMode() {
-    const auto& availablePresentModes = _chain_support_details.presentModes;
+void vulkanSwapChain::chooseSwapPresentMode(const UTL::vector<VkPresentModeKHR>& presentModes) {
     VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
-    for (const auto& availablePresentMode : availablePresentModes) {
+    for (const auto& availablePresentMode : presentModes) {
         if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR || availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
             bestMode = availablePresentMode;
         }
@@ -51,13 +52,11 @@ void vulkanSwapChain::chooseSwapPresentMode() {
     _present_mode = bestMode;
 }
 
-void vulkanSwapChain::chooseSwapExtent() {
-    const auto& capabilities = _chain_support_details.capabilities;
+void vulkanSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<u32>::max()) {
         _extent = capabilities.currentExtent;
     } else {
         u32 width, height;
-
 #if _WIN32
         HWND hwnd{ static_cast<HWND>(_window.handle()) };
         RECT rect;
@@ -82,11 +81,16 @@ void vulkanSwapChain::chooseSwapExtent() {
 }
 
 void vulkanSwapChain::create() {
+    DETAIL::SwapChainSupportDetails details = querySwapChainSupport();
+    chooseSwapSurfaceFormat(details.formats);
+    chooseSwapPresentMode(details.presentModes);
+    chooseSwapExtent(details.capabilities);
+
     // in order to support tri-buffer, let the chain support one more graphics than the minimum
-    u32 imageCount = _chain_support_details.capabilities.minImageCount + 1;
-    if (_chain_support_details.capabilities.maxImageCount > 0
-        && imageCount > _chain_support_details.capabilities.maxImageCount) {
-        imageCount = _chain_support_details.capabilities.maxImageCount; // limit the actual image count
+    u32 imageCount = details.capabilities.minImageCount + 1;
+    if (details.capabilities.maxImageCount > 0
+        && imageCount > details.capabilities.maxImageCount) {
+        imageCount = details.capabilities.maxImageCount; // limit the actual image count
     }
     // we can use any number of graphics if the memory can fulfill when the maxImageCount is 0
 
@@ -114,19 +118,61 @@ void vulkanSwapChain::create() {
         createInfo.pQueueFamilyIndices = nullptr;
     }
 
-    createInfo.preTransform = _chain_support_details.capabilities.currentTransform;
+    createInfo.preTransform = details.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; // alpha channel should be used to blend between surface window and other windows
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO
 
-    VKCall(vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swap_chain), "::VULKAN: failed to create swap chain\n");
+    VKCall(vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swap_chain), "::VULKAN: failed to create a swap chain\n");
+
+    vkGetSwapchainImagesKHR(_device, _swap_chain, &imageCount, nullptr);
+    _images.resize(imageCount);
+    vkGetSwapchainImagesKHR(_device, _swap_chain, &imageCount, _images.data());
+
+    createImageViews();
+
+#ifdef _DEBUG
+    debug_output("::VULKAN: Swapchain successfully created\n");
+#endif
+}
+
+void vulkanSwapChain::createImageViews() {
+    _image_views.clear();
+    _image_views.resize(_images.size());
+
+    VkImageSubresourceRange range{};
+    range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    range.baseMipLevel = 0;
+    range.levelCount = 1;
+    range.baseArrayLayer = 0;
+    range.layerCount = 1;
+
+    for (u32 i{0}; i < _images.size(); ++i) {
+        _image_views[i].setDevice(_device);
+        _image_views[i].create(_images[i], VK_IMAGE_VIEW_TYPE_2D, _surface_format.format, range);
+    }
+}
+
+void vulkanSwapChain::recreate() {
+    create();
+    // TODO
+    // create Render Pass
+    // create Graphics Pipeline
+    // create Color Resources
+    // create Depth Resources
+    // create Frame Buffers
+    // create Command Buffers
 }
 
 void vulkanSwapChain::release() {
     vkDeviceWaitIdle(_device);
 
     // TODO
-
-    vkDestroySwapchainKHR(_device, _swap_chain, nullptr);
+    _image_views.clear();
+    if (_swap_chain != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(_device, _swap_chain, nullptr);
+        _swap_chain = VK_NULL_HANDLE;
+    }
 }
+
 }

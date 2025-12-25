@@ -113,40 +113,29 @@ QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& physical_device, co
     return indices;
 }
 
-VkPhysicalDeviceFeatures findPhysicalDeviceFeatures(const VkPhysicalDevice& physical_device) {
-    VkPhysicalDeviceFeatures features;
-    vkGetPhysicalDeviceFeatures(physical_device, &features);
+
+VkPhysicalDeviceFeatures2 findPhysicalDeviceFeatures(const VkPhysicalDevice& physical_device) {
+    VkPhysicalDeviceFeatures2 features{};
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features.pNext = nullptr;
+    vkGetPhysicalDeviceFeatures2(physical_device, &features);
     return features;
 }
-VkPhysicalDeviceFeatures2 findPhysicalDeviceFeatures2(const VkPhysicalDevice& physical_device) {
-    VkPhysicalDeviceFeatures2 features2;
-    vkGetPhysicalDeviceFeatures2(physical_device, &features2);
-    return features2;
-}
 
-
-VkPhysicalDeviceProperties findPhysicalDeviceProperties(const VkPhysicalDevice& physical_device) {
-    VkPhysicalDeviceProperties properties;
-    vkGetPhysicalDeviceProperties(physical_device, &properties);
+VkPhysicalDeviceProperties2 findPhysicalDeviceProperties(const VkPhysicalDevice& physical_device) {
+    VkPhysicalDeviceProperties2 properties;
+    properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    properties.pNext = nullptr;
+    vkGetPhysicalDeviceProperties2(physical_device, &properties);
     return properties;
 }
 
-VkPhysicalDeviceProperties2 findPhysicalDeviceProperties2(const VkPhysicalDevice& physical_device) {
-    VkPhysicalDeviceProperties2 properties2;
-    vkGetPhysicalDeviceProperties2(physical_device, &properties2);
-    return properties2;
-}
-
-VkPhysicalDeviceMemoryProperties findPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physical_device) {
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(physical_device, &memoryProperties);
+VkPhysicalDeviceMemoryProperties2 findPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physical_device) {
+    VkPhysicalDeviceMemoryProperties2 memoryProperties;
+    memoryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
+    memoryProperties.pNext = nullptr;
+    vkGetPhysicalDeviceMemoryProperties2(physical_device, &memoryProperties);
     return memoryProperties;
-}
-
-VkPhysicalDeviceMemoryProperties2 findPhysicalDeviceMemoryProperties2(const VkPhysicalDevice& physical_device) {
-    VkPhysicalDeviceMemoryProperties2 memoryProperties2;
-    vkGetPhysicalDeviceMemoryProperties2(physical_device, &memoryProperties2);
-    return memoryProperties2;
 }
 
 }

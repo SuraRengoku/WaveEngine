@@ -124,7 +124,8 @@ bool vulkanContext::initialize() {
 }
 
 void vulkanContext::shutdown() {
-
+	vkDestroyInstance(_instanceContext._instance, _instanceContext._allocator);
+	vkDestroyDevice(_deviceContext._device, _deviceContext._allocator);
 }
 
 VkResult vulkanContext::createInstance() {
@@ -201,9 +202,9 @@ VkResult vulkanContext::pickPhysicalDevice() {
     if (candidates.rbegin()->first > 0) {
         _adapterContext._physicalDevice = candidates.rbegin()->second;
         _vkMSAASamples = VKX::getMaxUsableSampleCount(_adapterContext._physicalDevice);
-    	_adapterContext._properties = VKX::findPhysicalDeviceProperties2(_adapterContext._physicalDevice);
-    	_adapterContext._memoryProperties = VKX::findPhysicalDeviceMemoryProperties2(_adapterContext._physicalDevice);
-    	_adapterContext._features = VKX::findPhysicalDeviceFeatures2(_adapterContext._physicalDevice);
+    	_adapterContext._properties = VKX::findPhysicalDeviceProperties(_adapterContext._physicalDevice);
+    	_adapterContext._memoryProperties = VKX::findPhysicalDeviceMemoryProperties(_adapterContext._physicalDevice);
+    	_adapterContext._features = VKX::findPhysicalDeviceFeatures(_adapterContext._physicalDevice);
 #ifdef _DEBUG
         debug_output("::VULKAN: Physical device picked up\n");
 #endif

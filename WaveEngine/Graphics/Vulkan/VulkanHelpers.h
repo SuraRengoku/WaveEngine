@@ -71,13 +71,10 @@ QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& physical_device);
 
 QueueFamilyIndices findQueueFamilies(const VkPhysicalDevice& physical_device, const VkSurfaceKHR& surface);
 
-VkPhysicalDeviceFeatures findPhysicalDeviceFeatures(const VkPhysicalDevice& physical_device);
-VkPhysicalDeviceFeatures2 findPhysicalDeviceFeatures2(const VkPhysicalDevice& physical_device);
+VkPhysicalDeviceFeatures2 findPhysicalDeviceFeatures(const VkPhysicalDevice& physical_device);
 
-VkPhysicalDeviceProperties findPhysicalDeviceProperties(const VkPhysicalDevice& physical_device);
-VkPhysicalDeviceProperties2 findPhysicalDeviceProperties2(const VkPhysicalDevice& physical_device);
+VkPhysicalDeviceProperties2 findPhysicalDeviceProperties(const VkPhysicalDevice& physical_device);
 
-VkPhysicalDeviceMemoryProperties findPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physical_device);
-VkPhysicalDeviceMemoryProperties2 findPhysicalDeviceMemoryProperties2(const VkPhysicalDevice& physical_device);
+VkPhysicalDeviceMemoryProperties2 findPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physical_device);
 
 }

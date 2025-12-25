@@ -35,9 +35,15 @@ struct instanceContext {
  */
 struct adapterContext {
     VkPhysicalDevice                    _physicalDevice{ VK_NULL_HANDLE };
+#if VK_VERSION_1_1
     VkPhysicalDeviceProperties2         _properties{};
     VkPhysicalDeviceFeatures2           _features{};
     VkPhysicalDeviceMemoryProperties2   _memoryProperties{};
+#else
+	VkPhysicalDeviceProperties          _properties{};
+	VkPhysicalDeviceFeatures            _features{};
+	VkPhysicalDeviceMemoryProperties    _memoryProperties{};
+#endif
 };
 
 /*

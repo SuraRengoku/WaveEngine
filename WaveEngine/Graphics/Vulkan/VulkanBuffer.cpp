@@ -2,17 +2,23 @@
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
-VkMemoryAllocateInfo vulkanBuffer::memoryAllocateInfo(VkMemoryPropertyFlags desiredMemoryProperties) const {
+void vulkanBuffer::setDevice(VkDevice device) {
+    assert(_device == VK_NULL_HANDLE);
+    _device = device;
+}
+
+VkMemoryAllocateInfo vulkanBuffer::memoryAllocateInfo(VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags desiredMemoryProperties) const {
+    assert(_device != VK_NULL_HANDLE);
     VkMemoryAllocateInfo memoryAllocateInfo{};
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(CORE::device(), _buffer, &memoryRequirements);
+    vkGetBufferMemoryRequirements(_device, _buffer, &memoryRequirements);
     memoryAllocateInfo.allocationSize = memoryRequirements.size;
     memoryAllocateInfo.memoryTypeIndex = UINT32_MAX;
-    const auto& physicalDeviceMemoryProperties = VKX::findPhysicalDeviceMemoryProperties(CORE::physical_device());
-    for (size_t i{0}; i < physicalDeviceMemoryProperties.memoryTypeCount; ++i) {
+    const auto& physicalDeviceMemoryProperties = VKX::findPhysicalDeviceMemoryProperties(physicalDevice);
+    for (size_t i{0}; i < physicalDeviceMemoryProperties.memoryProperties.memoryTypeCount; ++i) {
         if (memoryRequirements.memoryTypeBits & 1 << i
-            && (physicalDeviceMemoryProperties.memoryTypes[i].propertyFlags & desiredMemoryProperties) == desiredMemoryProperties) {
+            && (physicalDeviceMemoryProperties.memoryProperties.memoryTypes[i].propertyFlags & desiredMemoryProperties) == desiredMemoryProperties) {
             memoryAllocateInfo.memoryTypeIndex = i;
             break;
         }
@@ -21,8 +27,9 @@ VkMemoryAllocateInfo vulkanBuffer::memoryAllocateInfo(VkMemoryPropertyFlags desi
     return memoryAllocateInfo;
 }
 
-VkResult vulkanBuffer::bindMemory(VkDeviceMemory device_memory, VkDeviceSize memoryOffset) const {
-    if (VkResult result = vkBindBufferMemory(CORE::device(), _buffer, device_memory, memoryOffset)) {
+VkResult vulkanBuffer::bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memoryOffset) const {
+    assert(_device != VK_NULL_HANDLE);
+    if (VkResult result = vkBindBufferMemory(_device, _buffer, deviceMemory, memoryOffset)) {
         debug_output("::VULKAN: Failed to attach buffer to memory\n");
         return result;
     }
@@ -30,17 +37,23 @@ VkResult vulkanBuffer::bindMemory(VkDeviceMemory device_memory, VkDeviceSize mem
 }
 
 VkResult vulkanBuffer::create(VkBufferCreateInfo& createInfo) {
+    assert(_device != VK_NULL_HANDLE);
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    if (VkResult result = vkCreateBuffer(CORE::device(), &createInfo, nullptr, &_buffer)) {
+    if (VkResult result = vkCreateBuffer(_device, &createInfo, nullptr, &_buffer)) {
         debug_output("::VULKAN: Failed to create a buffer\n");
         return result;
     }
     return VK_SUCCESS;
 }
 
-VkResult vulkanBufferView::create(VkBufferViewCreateInfo& createInfo) {
-    createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
-    if (VkResult result = vkCreateBufferView(CORE::device(), &createInfo, nullptr, &_buffer_view)) {
+void vulkanBufferView::setDevice(VkDevice device) {
+    assert(_device == VK_NULL_HANDLE);
+    _device = device;
+}
+
+VkResult vulkanBufferView::create(const VkBufferViewCreateInfo& createInfo) {
+    assert(_device != VK_NULL_HANDLE);
+    if (VkResult result = vkCreateBufferView(_device, &createInfo, nullptr, &_buffer_view)) {
         debug_output("::VULKAN: Failed to create a buffer view\n");
         return result;
     }
@@ -49,6 +62,7 @@ VkResult vulkanBufferView::create(VkBufferViewCreateInfo& createInfo) {
 
 VkResult vulkanBufferView::create(VkBuffer buffer, VkFormat format, VkDeviceSize offset, VkDeviceSize range) {
     VkBufferViewCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
     createInfo.format = format;
     createInfo.buffer = buffer;
     createInfo.offset = offset;
