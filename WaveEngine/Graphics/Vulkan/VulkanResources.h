@@ -83,7 +83,7 @@ public:
 	[[nodiscard]] constexpr u32 size() const { return _size; }
 
 private:
-	VkDescriptorPool								_pool = VK_NULL_HANDLE;
+	VkDescriptorPool								_pool{ VK_NULL_HANDLE };
 	std::mutex										_mutex{};
 	UTL::vector<descriptorSet>						_deferred_free_sets[frame_buffer_count]{};
 	u32												_capacity{ 0 };

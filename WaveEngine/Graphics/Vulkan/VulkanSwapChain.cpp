@@ -102,7 +102,7 @@ void vulkanSwapChain::create() {
     createInfo.imageColorSpace = _surface_format.colorSpace;
     createInfo.presentMode = _present_mode;
     createInfo.imageExtent = _extent;
-    createInfo.imageArrayLayers = 1; // for VR this variable maybe more than 1
+    createInfo.imageArrayLayers = 1; // #view point(s), for VR this variable maybe more than 1
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     VKX::QueueFamilyIndices indices = VKX::findQueueFamilies(_physical_device, _surface);

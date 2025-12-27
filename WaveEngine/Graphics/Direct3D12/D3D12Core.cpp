@@ -166,7 +166,7 @@ private:
 
 using surfaceCollection = UTL::freeList<d3d12Surface>;
 
-id3d12Device*				main_device{ nullptr }; // latest for windows 10
+id3d12Device*				main_device{ nullptr }; // latest for Windows 10
 IDXGIFactory7*				dxgi_factory{ nullptr };
 d3d12Command				gfx_command;
 surfaceCollection			surfaces;
