@@ -121,7 +121,7 @@ inline void debug_output(const char* message) {
 #endif
 #else
 #ifndef VKCall
-#define VKCall(call, message) call \
+#define VKCall(call, message) \
 	do { (void)(call); (void)(message); } while(0)
 #endif
 #endif

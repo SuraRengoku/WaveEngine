@@ -344,7 +344,7 @@ private:
 		clear(); // call destructor for each item and set _size = 0 inside 
 		_capacity = 0;
 		if (_data) {
-			free(_data);
+			free(const_cast<void*>(static_cast<const void*>(_data)));
 		}
 		_data = nullptr;
 	}

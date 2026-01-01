@@ -14,6 +14,7 @@
 #include <set>
 #include <mutex>
 #include <cstdio>
+#include <fstream>
 
 #if defined(_WIN64)
 #include <DirectXMath.h>

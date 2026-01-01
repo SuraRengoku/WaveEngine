@@ -1,6 +1,7 @@
 #include "VulkanCore.h"
 #include "VulkanSurface.h"
 #include "VulkanSwapChain.h"
+#include "VulkanShader.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::CORE {
 
@@ -20,6 +21,9 @@ descriptorPool						per_draw_pool{};								// most frequently update
 
 u32									deferred_releases_flag[frame_buffer_count];
 std::mutex							deferred_releases_mutex{};
+
+// TODO maybe we can move this to specific pass file
+UTL::vector<SHADERS::vulkanShader>	shaders{ SHADERS::engineShader::count };
 
 bool check_vulkan_runtime() {
 	HMODULE vulkan_dll = LoadLibraryA("vulkan-1.dll");
@@ -65,7 +69,10 @@ bool initialize() {
 	}
 	VKbCall(per_draw_pool.initialize(1024, VKX::perDrawPoolSizes), "::VULKAN: failed to initialize per draw descriptor pool\n");
 
+	SHADERS::initialize();
+
 	return true;
+
 }
 
 void shutdown() {

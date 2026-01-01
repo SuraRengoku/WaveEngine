@@ -6,7 +6,6 @@
 #include "..\Graphics\Renderer.h"
 #include "ShaderCompilation.h"
 
-
 class engineTest : public test {
 public:
 	bool initialize() override;

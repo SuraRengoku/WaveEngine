@@ -135,8 +135,13 @@ bool test_initialize() {
 		if (MessageBox(nullptr, L"Failed to compile engine shaders", L"Shader Compilation Error", MB_RETRYCANCEL) != IDRETRY)
 			return false;
 	}
-
+#if USE_D3D12
+	if (!GRAPHICS::initialize(GRAPHICS::graphics_platform::Direct3D12)) return false;
+#elif USE_D3D11
+#elif USE_VULKAN
 	if (!GRAPHICS::initialize(GRAPHICS::graphics_platform::Vulkan)) return false;
+#elif USE_OPENGL
+#endif
 
 	PLATFORM::window_init_info info[]{
 		{&win_proc, nullptr, L"Render window 1", 100, 100, 400, 800},

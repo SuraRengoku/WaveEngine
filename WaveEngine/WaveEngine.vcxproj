@@ -73,6 +73,7 @@
     <ClInclude Include="Graphics\Vulkan\VulkanQueue.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanRenderPass.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanResources.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanSampler.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanShader.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanSurface.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanSwapChain.h" />

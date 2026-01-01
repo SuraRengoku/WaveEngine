@@ -81,7 +81,7 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags,
     beginInfo.flags = usageFlags;
     beginInfo.pInheritanceInfo = &inheritanceInfo;
     if (VkResult result = vkBeginCommandBuffer(_commandBuffer, &beginInfo)) {
-        debug_output("::VULKAN:ERROR Failed to begin a command buffe\n");
+        debug_output("::VULKAN:ERROR Failed to begin a command buffer\n");
         return result;
     }
     return VK_SUCCESS;
@@ -93,7 +93,7 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags) const 
     beginInfo.flags = usageFlags;
     beginInfo.pInheritanceInfo = VK_NULL_HANDLE;
     if (VkResult result = vkBeginCommandBuffer(_commandBuffer, &beginInfo)) {
-        debug_output("::VULKAN:ERROR Failed to begin a command buffe\n");
+        debug_output("::VULKAN:ERROR Failed to begin a command buffer\n");
         return result;
     }
     return VK_SUCCESS;
