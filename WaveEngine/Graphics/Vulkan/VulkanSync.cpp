@@ -4,7 +4,7 @@ namespace WAVEENGINE::GRAPHICS::VULKAN {
 
 VkResult vulkanFence::wait() const {
     if (VkResult result = vkWaitForFences(_device, 1, &_fence, false, UINT64_MAX)) {
-        debug_output("::VULKAN:ERROR [ fence ] Failed to wait for the fence\n");
+        debug_error("::VULKAN:ERROR [ fence ] Failed to wait for the fence\n");
         return result;
     }
     return VK_SUCCESS;
@@ -12,7 +12,7 @@ VkResult vulkanFence::wait() const {
 
 VkResult vulkanFence::reset() const {
     if (VkResult result = vkResetFences(_device, 1, &_fence)) {
-        debug_output("::VULKAN:ERROR [ fence ] Failed to reset the fence\n");
+        debug_error("::VULKAN:ERROR [ fence ] Failed to reset the fence\n");
         return result;
     }
     return VK_SUCCESS;
@@ -27,7 +27,7 @@ VkResult vulkanFence::waitAndReset() const {
 VkResult vulkanFence::status() const {
     VkResult result = vkGetFenceStatus(_device, _fence);
     if (result < 0) {
-        debug_output("::VULKAN:ERROR Failed to get the status of fence\n");
+        debug_error("::VULKAN:ERROR Failed to get the status of fence\n");
         return result;
     }
     return VK_SUCCESS;
@@ -37,7 +37,7 @@ VkResult vulkanFence::create(VkFenceCreateInfo& createInfo, VkFenceCreateFlags f
     assert(_device);
     createInfo.flags = flags;
     if (VkResult result = vkCreateFence(_device, &createInfo, nullptr, &_fence)) {
-        debug_output("::VULKAN:ERROR Failed to create a fence\n");
+        debug_error("::VULKAN:ERROR Failed to create a fence\n");
         return result;
     }
     return VK_SUCCESS;
@@ -47,7 +47,7 @@ VkResult vulkanFence::create(VkFenceCreateInfo& createInfo, VkFenceCreateFlags f
 VkResult vulkanSemaphore::wait(VkSemaphoreWaitInfo& waitInfo) const {
     waitInfo.pSemaphores = &_semaphore;
     if (VkResult result = vkWaitSemaphores(_device, &waitInfo, UINT64_MAX)) {
-        debug_output("::VULKAN:ERROR Failed to wait for the semaphore\n");
+        debug_error("::VULKAN:ERROR Failed to wait for the semaphore\n");
         return result;
     }
     return VK_SUCCESS;
@@ -58,7 +58,7 @@ VkResult vulkanSemaphore::create(VkSemaphoreCreateInfo& createInfo, VkSemaphoreC
     createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     createInfo.flags = flags;
     if (VkResult result = vkCreateSemaphore(_device, &createInfo, nullptr, &_semaphore)) {
-        debug_output("::VULKAN:ERROR Failed to create a semaphore\n");
+        debug_error("::VULKAN:ERROR Failed to create a semaphore\n");
         return result;
     }
     return VK_SUCCESS;
@@ -90,7 +90,7 @@ void vulkanEvent::cmdWait(VkCommandBuffer commandBuffer, VkPipelineStageFlags st
 VkResult vulkanEvent::set() const {
     // CPU set event to signaled
     if (VkResult result = vkSetEvent(_device, _event)) {
-        debug_output("::VULKAN:ERROR Failed to set event\n");
+        debug_error("::VULKAN:ERROR Failed to set event\n");
         return result;
     }
     return VK_SUCCESS;
@@ -99,7 +99,7 @@ VkResult vulkanEvent::set() const {
 VkResult vulkanEvent::reset() const {
     // CPU set event to unsignaled
     if (VkResult result = vkResetEvent(_device, _event)) {
-        debug_output("::VULKAN:ERROR Failed to reset event\n");
+        debug_error("::VULKAN:ERROR Failed to reset event\n");
         return result;
     }
     return VK_SUCCESS;
@@ -107,7 +107,7 @@ VkResult vulkanEvent::reset() const {
 
 VkResult vulkanEvent::status() const {
     if (VkResult result = vkGetEventStatus(_device, _event)) {
-        debug_output("::VULKAN:ERROR Failed to query the event status\n");
+        debug_error("::VULKAN:ERROR Failed to query the event status\n");
         return result;
     }
     return VK_SUCCESS;
@@ -118,7 +118,7 @@ VkResult vulkanEvent::create(VkEventCreateInfo& createInfo, VkEventCreateFlags f
     createInfo.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
     createInfo.flags = flags;
     if (VkResult result = vkCreateEvent(_device, &createInfo, nullptr, &_event)) {
-        debug_output("::VULKAN:ERROR Failed to create an event\n");
+        debug_error("::VULKAN:ERROR Failed to create an event\n");
         return result;
     }
     return VK_SUCCESS;

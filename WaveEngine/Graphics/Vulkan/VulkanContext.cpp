@@ -11,9 +11,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkanContext::debugCallback(VkDebugUtilsMessageS
 	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 	void* pUserData) {
 #ifdef _DEBUG
-	debug_output("::VULKAN: validation layer: ");
-	debug_output(pCallbackData->pMessage);
-	debug_output("\n");
+	debug_error("::VULKAN:ERROR Validation layer: ");
+	debug_error(pCallbackData->pMessage);
+	debug_error("\n");
 #endif
 	return VK_FALSE;
 }
@@ -86,10 +86,10 @@ void vulkanContext::setupDebugMessenger() const{
 	VkDebugUtilsMessengerCreateInfoEXT createInfo;
 	populateDebugMessengerCreateInfo(createInfo);
 
-	VKCall(CreateDebugUtilsMessengerEXT(_instanceContext._instance, &createInfo, nullptr, &_callback), "::VULKAN: failed to set up debug callback\n");
+	VKCall(CreateDebugUtilsMessengerEXT(_instanceContext._instance, &createInfo, nullptr, &_callback), "::VULKAN:ERROR Failed to set up debug callback\n");
 
 #ifdef _DEBUG
-	debug_output("::VULKAN: debug messenger successfully set up\n");
+	debug_output("::VULKAN:INFO debug messenger successfully set up\n");
 #endif
 }
 
@@ -117,9 +117,9 @@ void vulkanContext::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUt
 
 bool vulkanContext::initialize() {
 	bool result = true;
-	VKCall(createInstance(), "::VULKAN: failed to create Vulkan Instance\n");
-	VKCall(pickPhysicalDevice(), "::VULKAN: failed to pick a physical device\n");
-	VKCall(createLogicalDevice(), "::VULKAN: failed to create a logical device\n");
+	VKCall(createInstance(), "::VULKAN:ERROR Failed to create Vulkan Instance\n");
+	VKCall(pickPhysicalDevice(), "::VULKAN:ERROR Failed to pick a physical device\n");
+	VKCall(createLogicalDevice(), "::VULKAN:ERROR Failed to create a logical device\n");
 	return result;
 }
 
@@ -129,7 +129,9 @@ void vulkanContext::shutdown() {
 }
 
 VkResult vulkanContext::createInstance() {
-    VKbCall(enableValidationLayers && checkValidationLayersSupport(), "::VULKAN: Validation layers requested but not available\n");
+#if _DEBUG
+    VKbCall(enableValidationLayers && checkValidationLayersSupport(), "::VULKAN:ERROR Validation layers requested but not available\n");
+#endif
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -160,7 +162,7 @@ VkResult vulkanContext::createInstance() {
         instanceInfo.enabledLayerCount = 0;
     }
 
-    VKCall(vkCreateInstance(&instanceInfo, nullptr, &_instanceContext._instance), "::VULKAN: failed to create instance\n");
+    VKCall(vkCreateInstance(&instanceInfo, nullptr, &_instanceContext._instance), "::VULKAN:ERROR Failed to create instance\n");
 
     u32 extensionsCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
@@ -169,13 +171,13 @@ VkResult vulkanContext::createInstance() {
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, extensions.data());
 
 #if _DEBUG
-    debug_output("available extensions: \n");
+    debug_output("Available extensions: \n");
     for (const auto& extension : extensions) {
         debug_output("\t");
         debug_output(extension.extensionName);
         debug_output("\n");
     }
-    debug_output("::VULKAN: Instance Created\n");
+    debug_output("::VULKAN:INFO Instance Created\n");
 #endif
 
     return VK_SUCCESS;
@@ -186,7 +188,7 @@ VkResult vulkanContext::pickPhysicalDevice() {
     vkEnumeratePhysicalDevices(_instanceContext._instance, &deviceCount, nullptr);
     if (deviceCount == 0) {
 #ifdef _DEBUG
-        debug_output("::VULKAN: failed to find GPUs with Vulkan support\n");
+        debug_error("::VULKAN:ERROR Failed to find GPUs with Vulkan support\n");
 #endif
         return VK_NOT_READY;
     }
@@ -206,13 +208,13 @@ VkResult vulkanContext::pickPhysicalDevice() {
     	_adapterContext._memoryProperties = VKX::findPhysicalDeviceMemoryProperties(_adapterContext._physicalDevice);
     	_adapterContext._features = VKX::findPhysicalDeviceFeatures(_adapterContext._physicalDevice);
 #ifdef _DEBUG
-        debug_output("::VULKAN: Physical device picked up\n");
+        debug_output("::VULKAN:INFO Physical device picked up\n");
 #endif
         return VK_SUCCESS;
     }
 
 #ifdef _DEBUG
-    debug_output("::VULKAN: failed to find a suitable GPU\n");
+    debug_error("::VULKAN:ERROR Failed to find a suitable GPU\n");
 #endif
     return VK_NOT_READY;
 }
@@ -265,14 +267,14 @@ VkResult vulkanContext::createLogicalDevice() {
 		createInfo.enabledLayerCount = 0;
 	}
 
-	VKCall(vkCreateDevice(_adapterContext._physicalDevice, &createInfo, nullptr, &_deviceContext._device), "::VULKAN: failed to create vulkan device\n");
+	VKCall(vkCreateDevice(_adapterContext._physicalDevice, &createInfo, nullptr, &_deviceContext._device), "::VULKAN:ERROR Failed to create vulkan device\n");
 
 	_deviceContext._graphicsQueue.initialize(_deviceContext._device, indices.graphicsFamily);
 	// assume that present queue is same as graphics queue
 	_deviceContext._presentQueue.initialize(_deviceContext._device, indices.graphicsFamily);
 
 #ifdef _DEBUG
-	debug_output("::VULKAN: Logical device created\n");
+	debug_output("::VULKAN:INFO Logical device created\n");
 #endif
 
 	return VK_SUCCESS;

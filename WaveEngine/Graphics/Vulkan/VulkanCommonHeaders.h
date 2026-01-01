@@ -49,12 +49,22 @@ constexpr u32 frame_buffer_count{ 3 };
 #define DEBUG_BREAK() raise(SIGTRAP)
 #endif
 
-inline void debug_output(const char* message) {
+inline void debug_error(const char* message) {
 #if _DEBUG
 #ifdef _WIN32
 	OutputDebugStringA(message);
 #else
 	std::cerr << message;
+#endif
+#endif
+}
+
+inline void debug_output(const char* message) {
+#if _DEBUG
+#ifdef _WIN32
+	OutputDebugStringA(message);
+#else
+	std::cout << message;
 #endif
 #endif
 }

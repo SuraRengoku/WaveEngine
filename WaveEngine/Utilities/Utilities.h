@@ -2,6 +2,7 @@
 
 #define USE_STL_VECTOR 0
 #define USE_STL_DEQUE 1
+#define USE_STL_ARRAY 1
 
 #if USE_STL_VECTOR
 #include <vector>
@@ -52,4 +53,9 @@ namespace WAVEENGINE::UTL {
 }
 
 #include "FreeList.h"
+
+#if USE_STL_ARRAY
+#include <array>
+#else
 #include "ArrayRef.h"
+#endif

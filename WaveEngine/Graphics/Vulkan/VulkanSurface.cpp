@@ -12,14 +12,14 @@ bool vulkanSurface::create(const instanceContext& ctx) {
     createInfo.hinstance = GetModuleHandle(nullptr);
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    VKCall(vkCreateWin32SurfaceKHR(ctx._instance, &createInfo, ctx._allocator, &_surface), "::VULKAN: failed to create a Win32 surface");
+    VKCall(vkCreateWin32SurfaceKHR(ctx._instance, &createInfo, ctx._allocator, &_surface), "::VULKAN:ERROR Failed to create a Win32 surface");
 #elif defined(__APPLE__)
     VkMetalSurfaceCreateInfoEXT createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     // TODO
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    VKCall(vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface), "::VULKAN: failed to create a Metal surface");
+    VKCall(vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface), "::VULKAN:ERROR Failed to create a Metal surface");
 #elif defined(__linux__)
 
     // TODO
@@ -30,9 +30,9 @@ bool vulkanSurface::create(const instanceContext& ctx) {
     // TODO
     createInfo.sNext = nullptr;
     createInfo.flags = 0;
-    VKCall(vkCreateAndroidSurfaceKHR(instance, &createInfo, nullptr, &_surface), "::VULKAN: failed to create an Android surface");
+    VKCall(vkCreateAndroidSurfaceKHR(instance, &createInfo, nullptr, &_surface), "::VULKAN:ERROR Failed to create an Android surface");
 #else
-    debug_output("Unsupported platform");
+    debug_error("Unsupported platform");
 #endif
 
     return true;

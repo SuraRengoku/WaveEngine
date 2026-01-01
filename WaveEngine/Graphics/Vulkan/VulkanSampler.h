@@ -27,7 +27,7 @@ public:
 
     VkResult create(const VkSamplerCreateInfo& createInfo) {
         if (VkResult result = vkCreateSampler(_device, &createInfo, nullptr, &_sampler)) {
-            debug_output("::VULKAN:ERROR Failed to create a sampler\n");
+            debug_error("::VULKAN:ERROR Failed to create a sampler\n");
             return result;
         }
         return VK_SUCCESS;

@@ -12,7 +12,7 @@ VkResult vulkanCommandPool::allocateBuffers(UTL::vector<VkCommandBuffer>& buffer
     allocateInfo.commandBufferCount = buffers.size();
     allocateInfo.level = level;
     if (VkResult result = vkAllocateCommandBuffers(_device, &allocateInfo, buffers.data())) {
-        debug_output("::VULKAN:ERROR Failed to allocate command buffers\n");
+        debug_error("::VULKAN:ERROR Failed to allocate command buffers\n");
         return result;
     }
     return VK_SUCCESS;
@@ -26,7 +26,7 @@ VkResult vulkanCommandPool::allocateBuffers(UTL::vector<vulkanCommandBuffer>& bu
     allocateInfo.commandBufferCount = buffers.size();
     allocateInfo.level = level;
     if (VkResult result = vkAllocateCommandBuffers(_device, &allocateInfo, reinterpret_cast<VkCommandBuffer*>(buffers.data()))) {
-        debug_output("::VULKAN:ERROR Failed to allocate command buffers\n");
+        debug_error("::VULKAN:ERROR Failed to allocate command buffers\n");
         return result;
     }
     return VK_SUCCESS;
@@ -34,7 +34,7 @@ VkResult vulkanCommandPool::allocateBuffers(UTL::vector<vulkanCommandBuffer>& bu
 
 void vulkanCommandPool::freeBuffers(UTL::vector<VkCommandBuffer>& buffers) const {
     if (buffers.empty()) {
-        debug_output(":VULKAN:WARNING the container of command buffer is empty\n");
+        debug_error(":VULKAN:WARNING the container of command buffer is empty\n");
         return;
     }
     vkFreeCommandBuffers(_device, _pool, buffers.size(), buffers.data());
@@ -43,13 +43,13 @@ void vulkanCommandPool::freeBuffers(UTL::vector<VkCommandBuffer>& buffers) const
 
 void vulkanCommandPool::freeBuffers(UTL::vector<vulkanCommandBuffer>& buffers) const {
     if (buffers.empty()) {
-        debug_output(":VULKAN:WARNING the container of command buffer is empty\n");
+        debug_error(":VULKAN:WARNING the container of command buffer is empty\n");
         return;
     }
     // TODO if we use ArrayRef we can just implicitly transfer vulkanCommandBuffer to VkCommandBuffer
     // TODO make sure vulkanCommandBuffer only has one element and no virtual functions
     static_assert(sizeof(vulkanCommandBuffer) == sizeof(VkCommandBuffer),
-        "::VULKAN:ERROR vulkanCommandBuffer must have th same size as VkCommandBuffer\n");
+        "::VULKAN:ERROR vulkanCommandBuffer must have the same size as VkCommandBuffer\n");
 
     vkFreeCommandBuffers(_device, _pool, buffers.size(), reinterpret_cast<const VkCommandBuffer*>(buffers.data()));
     memset(buffers.data(), 0, buffers.size() * sizeof(vulkanCommandBuffer));
@@ -58,7 +58,7 @@ void vulkanCommandPool::freeBuffers(UTL::vector<vulkanCommandBuffer>& buffers) c
 VkResult vulkanCommandPool::create(const VkCommandPoolCreateInfo& createInfo) {
     assert(_device != VK_NULL_HANDLE);
     if (VkResult result = vkCreateCommandPool(_device, &createInfo, nullptr, &_pool)) {
-        debug_output("::VULKAN:ERROR Failed to create a command pool\n");
+        debug_error("::VULKAN:ERROR Failed to create a command pool\n");
         return result;
     }
     return VK_SUCCESS;
@@ -81,7 +81,7 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags,
     beginInfo.flags = usageFlags;
     beginInfo.pInheritanceInfo = &inheritanceInfo;
     if (VkResult result = vkBeginCommandBuffer(_commandBuffer, &beginInfo)) {
-        debug_output("::VULKAN:ERROR Failed to begin a command buffer\n");
+        debug_error("::VULKAN:ERROR Failed to begin a command buffer\n");
         return result;
     }
     return VK_SUCCESS;
@@ -93,7 +93,7 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags) const 
     beginInfo.flags = usageFlags;
     beginInfo.pInheritanceInfo = VK_NULL_HANDLE;
     if (VkResult result = vkBeginCommandBuffer(_commandBuffer, &beginInfo)) {
-        debug_output("::VULKAN:ERROR Failed to begin a command buffer\n");
+        debug_error("::VULKAN:ERROR Failed to begin a command buffer\n");
         return result;
     }
     return VK_SUCCESS;
@@ -101,7 +101,7 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags) const 
 
 VkResult vulkanCommandBuffer::end() const {
     if (VkResult result = vkEndCommandBuffer(_commandBuffer)) {
-        debug_output("::VULKAN:ERROR Failed to end a command buffer\n");
+        debug_error("::VULKAN:ERROR Failed to end a command buffer\n");
         return result;
     }
     return VK_SUCCESS;

@@ -5,7 +5,7 @@ namespace  WAVEENGINE::GRAPHICS::VULKAN {
 VkResult vulkanPipelineLayout::create(const VkPipelineLayoutCreateInfo& createInfo) {
     assert(_device != VK_NULL_HANDLE);
     if (VkResult result = vkCreatePipelineLayout(_device, &createInfo, nullptr, &_pipelineLayout)) {
-        debug_output("::VULKAN: Failed to create a pipeline layout\n");
+        debug_error("::VULKAN:ERROR Failed to create a pipeline layout\n");
         return result;
     }
     return VK_SUCCESS;
@@ -71,7 +71,7 @@ void vulkanPipelineCreateInfoPack::updateAllArrayAddresses() {
 VkResult vulkanPipeline::create(const VkGraphicsPipelineCreateInfo& createInfo) {
     assert(_device != VK_NULL_HANDLE);
     if (VkResult result = vkCreateGraphicsPipelines(_device, nullptr, 1, &createInfo, nullptr, &_pipeline)) {
-        debug_output("::VULKAN: Failed to create a graphics pipeline\n");
+        debug_error("::VULKAN:ERROR Failed to create a graphics pipeline\n");
         return result;
     }
     return VK_SUCCESS;
@@ -80,7 +80,7 @@ VkResult vulkanPipeline::create(const VkGraphicsPipelineCreateInfo& createInfo) 
 VkResult vulkanPipeline::create(const VkComputePipelineCreateInfo& createInfo) {
     assert(_device != VK_NULL_HANDLE);
     if (VkResult result = vkCreateComputePipelines(_device, nullptr, 1, &createInfo, nullptr, &_pipeline)) {
-        debug_output("::VULKAN: Failed to create a compute pipeline\n");
+        debug_error("::VULKAN:ERROR Failed to create a compute pipeline\n");
         return result;
     }
     return VK_SUCCESS;
@@ -90,7 +90,7 @@ VkResult vulkanPipeline::create(const VkRayTracingPipelineCreateInfoKHR& createI
     assert(_device != VK_NULL_HANDLE);
     // TODO currently not useful because of deferredOperation
     if (VkResult result = vkCreateRayTracingPipelinesKHR(_device, nullptr, nullptr, 1, &createInfo, nullptr, &_pipeline)) {
-        debug_output("::VULKAN: Failed to create a ray tracing pipeline\n");
+        debug_error("::VULKAN:ERROR Failed to create a ray tracing pipeline\n");
         return result;
     }
     return VK_SUCCESS;

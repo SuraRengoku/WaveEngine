@@ -3,11 +3,41 @@
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::SHADERS {
 
-compiledShaderPtr engine_shaders[engineShader::id::count]{};
+// compiledShaderPtr engine_shaders[engineShader::id::count]{};
+
+namespace {
+
+std::array<std::vector<u32>, engineShader::id::count> engine_shaders;
 
 std::unique_ptr<u8[]> shaders_blob{};
 
 bool load_engine_shaders() {
+    auto engine_shades_path = get_engine_shaders_path();
+    if (!std::filesystem::exists(engine_shades_path)) return false;
+
+    std::ifstream file(engine_shades_path, std::ios::in | std::ios::binary);
+    if (!file) return false;
+
+    u32 index = 0;
+    while (file.peek() != EOF && index < engineShader::id::count) {
+        // read u64
+        size_t byte_size = 0;
+        file.read(reinterpret_cast<char*>(&byte_size), sizeof(byte_size));
+
+        if (byte_size == 0) break;
+
+        // compute # of u32
+        size_t u32_count = byte_size / sizeof(u32);
+        engine_shaders[index].resize(u32_count);
+        file.read(reinterpret_cast<char*>(engine_shaders[index].data()), byte_size);
+        ++index;
+    }
+    file.close();
+    return index == engineShader::id::count;
+}
+
+// for specific memory layout
+bool load_engine_shaders_raw() {
     assert(!shaders_blob);
     u64 size{ 0 };
     bool result{ CONTENT::load_engine_shaders(shaders_blob, size) };
@@ -18,12 +48,21 @@ bool load_engine_shaders() {
     u32 index{ 0 };
     while (offset < size && result) {
         assert(index < engineShader::id::count);
-        compiledShaderPtr& shader{ engine_shaders[index] };
-        assert(!shader);
-        result &= index < engineShader::id::count && !shader;
+        result &= index < engineShader::id::count;
         if (!result) break;
-        shader = reinterpret_cast<const compiledShaderPtr>(&shaders_blob[offset]);
-        offset += sizeof(u64) + shader->size;
+
+        // read size
+        size_t byte_size = *reinterpret_cast<size_t*>(&shaders_blob[offset]);
+        offset += sizeof(size_t);
+
+        // load u32 to vector
+        size_t u32_count = byte_size / sizeof(u32);
+        engine_shaders[index].assign(
+            reinterpret_cast<u32*>(&shaders_blob[offset]),
+            reinterpret_cast<u32*>(&shaders_blob[offset] + byte_size)
+        );
+
+        offset += byte_size;
         ++index;
     }
     assert(offset == size && index == engineShader::id::count);
@@ -31,23 +70,38 @@ bool load_engine_shaders() {
     return result;
 }
 
-bool initialize() {
+const std::vector<u32>* get_engine_shader(engineShader::id id) {
+    assert(id < engineShader::id::count);
+    if (engine_shaders[id].empty()) {
+        return nullptr;
+    }
+    return &engine_shaders[id];
+}
+
+}
+
+bool loadEngineShaders() {
     return load_engine_shaders();
 }
 
-void shutdown() {
-    for (u32 i{ 0 }; i < engineShader::id::count; ++i) {
-         engine_shaders[i] = nullptr;
+void unloadEngineShaders() {
+    for (auto& shader : engine_shaders) {
+        shader.clear();
     }
     shaders_blob.reset();
 }
 
-const std::vector<u32>* get_engine_shader(engineShader::id id) {
-    assert(id < engineShader::id::count);
-
-}
-
 VkResult vulkanShader::create(VkShaderModuleCreateInfo& createInfo, engineShader::id shaderId) {
+    auto* spir_v = get_engine_shader(shaderId);
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = spir_v->size() * sizeof(u32);
+    createInfo.pCode = spir_v->data();
+
+    if (VkResult result = vkCreateShaderModule(_device, &createInfo, nullptr, &_shaderModule)) {
+        debug_error("::VULKAN:ERROR Failed to create shader\n");
+        return result;
+    }
+
     return VK_SUCCESS;
 }
 
@@ -57,22 +111,16 @@ shaderc_include_result* shaderIncluder::GetInclude(const char* requested_source,
     std::filesystem::path include_path = _base_path / requested_source;;
 
     std::string debug_msg = "Looking for include: " + include_path.string() + "\n";
-#if _WIN32
-    OutputDebugStringA(debug_msg.c_str());
-#else
-    std::cout << debug_msg.c_str();
-#endif
+
+    debug_output(debug_msg.c_str());
 
     auto* result = new shaderc_include_result;
     std::ifstream file(include_path, std::ios::binary);
 
     if (!file.is_open()) {
         std::string error_msg = "Failed to open include file: " + include_path.string() + "\n";
-#if _WIN32
-        OutputDebugStringA(error_msg.c_str());
-#else
-        std::cerr << error_msg.c_str();
-#endif
+
+        debug_error(error_msg.c_str());
 
         auto* error_content = new std::string(error_msg);
         result->source_name = "";
@@ -89,11 +137,7 @@ shaderc_include_result* shaderIncluder::GetInclude(const char* requested_source,
 
     std::string success_msg = "Successfully loaded: " + include_path.string() +
                                      " (" + std::to_string(content->size()) + " bytes)\n";
-#if _WIN32
-    OutputDebugStringA(success_msg.c_str());
-#else
-    std::cerr << success_msg.c_str();
-#endif
+    debug_output(success_msg.c_str());
 
     result->source_name = name->c_str();
     result->source_name_length = name->size();
@@ -114,15 +158,11 @@ void shaderIncluder::ReleaseInclude(shaderc_include_result* data) {
     delete data;
 }
 
-std::vector<u32> vulkanShaderCompiler::compile(const shaderFileInfo& info, const std::filesystem::path& full_path) {
+std::vector<u32> vulkanShaderCompiler::compile(const shaderFileInfo& info, const std::filesystem::path& full_path) const {
     // read hlsl
     std::ifstream file(full_path);
     if (!file) {
-#if _WIN32
-        OutputDebugStringA("Failed to open shader file\n");
-#else
-        std::cerr << "Failed to open shader file\n";
-#endif
+        debug_error("Failed to open shader file\n");
         return {};
     }
 
@@ -157,11 +197,7 @@ std::vector<u32> vulkanShaderCompiler::compile(const shaderFileInfo& info, const
 
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
         std::string error = "Shader compilation failed:\n" + result.GetErrorMessage();
-#if _WIN32
-        OutputDebugStringA(error.c_str());
-#else
-        std::cerr << error.c_str();
-#endif
+        debug_error(error.c_str());
         return {};
     }
 

@@ -2,37 +2,12 @@
 #include <filesystem>
 #include "VulkanCommonHeaders.h"
 #include <shaderc/shaderc.hpp>
-// #include <glslang/Public/ShaderLang.h>
-// #include <glslang/Public/ResourceLimits.h>
-// #include <glslang/SPIRV/GlslangToSpv.h>
-// #include <glslang/Include/ResourceLimits.h>
-// #include <glslang/StandAlone/DirStackFileIncluder.h>
 
 #if _DEBUG
 #pragma comment(lib, "shaderc_combinedd.lib")
 #else
 #pragma comment(lib, "shaderc_combined.lib")
 #endif
-
-// #if _DEBUG
-// #pragma comment(lib, "glslangd.lib")
-// #pragma comment(lib, "SPIRVd.lib")
-// #pragma comment(lib, "glslang-default-resource-limitsd.lib")
-// #pragma comment(lib, "MachineIndependentd.lib")
-// #pragma comment(lib, "GenericCodeGend.lib")
-// #pragma comment(lib, "OSDependentd.lib")
-// #pragma comment(lib, "SPIRV-Toolsd.lib")
-// #pragma comment(lib, "SPIRV-Tools-optd.lib")
-// #else
-// #pragma comment(lib, "glslang.lib")
-// #pragma comment(lib, "SPIRV.lib")
-// #pragma comment(lib, "glslang-default-resource-limits.lib")
-// #pragma comment(lib, "MachineIndependent.lib")
-// #pragma comment(lib, "GenericCodeGen.lib")
-// #pragma comment(lib, "OSDependent.lib")
-// #pragma comment(lib, "SPIRV-Tools.lib")
-// #pragma comment(lib, "SPIRV-Tools-opt.lib")
-// #endif
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::SHADERS {
 
@@ -141,7 +116,7 @@ public:
 
     DISABLE_COPY_AND_MOVE(vulkanShaderCompiler);
 
-    std::vector<u32> compile(const shaderFileInfo& info, const std::filesystem::path& full_path);
+    std::vector<u32> compile(const shaderFileInfo& info, const std::filesystem::path& full_path) const;
 private:
     shaderc::Compiler               _compiler;
     shaderc::CompileOptions         _options;
@@ -149,9 +124,7 @@ private:
     static shaderc_shader_kind get_shader_stage(shaderType::type type);
 };
 
-bool initialize();
-void shutdown();
-
-const std::vector<u32>* get_engine_shader(engineShader::id id);
+bool loadEngineShaders();
+void unloadEngineShaders();
 
 }

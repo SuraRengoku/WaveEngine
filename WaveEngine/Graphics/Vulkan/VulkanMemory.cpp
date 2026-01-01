@@ -43,7 +43,7 @@ VkResult vulkanDeviceMemory::mapMemory(void*& pData, VkDeviceSize size, VkDevice
         inverseDeltaOffset = adjustNonCoherentMemoryRange(size, offset);
     }
     if (VkResult result = vkMapMemory(_device, _device_memory, offset, size, 0, &pData)) {
-        debug_output("::VULKAN: Failed to map the memory\n");
+        debug_error("::VULKAN:ERROR Failed to map the memory\n");
         return result;
     }
     if (!(_memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
@@ -56,7 +56,7 @@ VkResult vulkanDeviceMemory::mapMemory(void*& pData, VkDeviceSize size, VkDevice
 
         assert(_device != VK_NULL_HANDLE);
         if (VkResult result = vkInvalidateMappedMemoryRanges(_device, 1, &mappedMemoryRange)) {
-            debug_output("::VULKAN: Failed to flush the memory\n");
+            debug_error("::VULKAN:ERROR Failed to flush the memory\n");
             return result;
         }
     }
@@ -73,7 +73,7 @@ VkResult vulkanDeviceMemory::unMapMemory(VkDeviceSize size, VkDeviceSize offset)
         mappedMemoryRange.size = size;
 
         if (VkResult result = vkFlushMappedMemoryRanges(_device, 1, &mappedMemoryRange)) {
-            debug_output("::VULKAN: Failed to flush the memory\n");
+            debug_error("::VULKAN:ERROR Failed to flush the memory\n");
             return result;
         }
     }
@@ -106,12 +106,12 @@ VkResult vulkanDeviceMemory::allocate(VkMemoryAllocateInfo& allocateInfo, VkPhys
     }
 
     if (allocateInfo.memoryTypeIndex >= _physical_device_properties.memoryProperties.memoryTypeCount) {
-        debug_output("::VULKAN: Invalid memory type index\n");
+        debug_error("::VULKAN:ERROR Invalid memory type index\n");
         return VK_RESULT_MAX_ENUM;
     }
     allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     if (VkResult result = vkAllocateMemory(_device, &allocateInfo, nullptr, &_device_memory)) {
-        debug_output("::VULKAN: Failed to allocate memory\n");
+        debug_error("::VULKAN:ERROR Failed to allocate memory\n");
         return result;
     }
     _allocation_size = allocateInfo.allocationSize;
@@ -137,7 +137,7 @@ VkResult vulkanBufferMemory::create(VkDevice device, VkPhysicalDevice physicalDe
     if (allocateInfo.memoryTypeIndex >=
         VKX::findPhysicalDeviceMemoryProperties(physicalDevice)
         .memoryProperties.memoryTypeCount) {
-        debug_output("::VULKAN: Invalid memory type index for buffer\n");
+        debug_error("::VULKAN:ERROR Invalid memory type index for buffer\n");
         return VK_RESULT_MAX_ENUM;
     }
 
@@ -171,7 +171,7 @@ VkResult vulkanImageMemory::create(VkDevice device, VkPhysicalDevice physicalDev
     if (allocateInfo.memoryTypeIndex >=
         VKX::findPhysicalDeviceMemoryProperties(physicalDevice)
         .memoryProperties.memoryTypeCount) {
-        debug_output("::VULKAN: Invalid memory type index for image\n");
+        debug_error("::VULKAN:ERROR Invalid memory type index for image\n");
         return VK_RESULT_MAX_ENUM;
     }
 

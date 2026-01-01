@@ -61,6 +61,9 @@ bool compiled_shaders_are_up_to_date() {
 	return true;
 }
 
+// data structure in memory
+// [size_t: shader0_byte_size][u32[]: shader0_data]
+// [size_t: shader1_byte_size][u32[]: shader1_data]
 #if USE_D3D12 || USE_D3D11
 bool save_compiled_shaders(UTL::vector<ComPtr<IDxcBlob>>& shaders) {
 	auto engine_shaders_path = get_engine_shaders_path();

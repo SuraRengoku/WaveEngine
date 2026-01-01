@@ -35,7 +35,7 @@ VkMemoryAllocateInfo vulkanImage::memoryAllocateInfo(VkPhysicalDevice physical_d
 VkResult vulkanImage::bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memoryOffset) const {
     assert(_device != VK_NULL_HANDLE);
     if (VkResult result = vkBindImageMemory(_device, _image, deviceMemory, memoryOffset)) {
-        debug_output("::VULKAN: Failed to attach image to memory\n");
+        debug_error("::VULKAN:ERROR Failed to attach image to memory\n");
         return result;
     }
     return VK_SUCCESS;
@@ -45,7 +45,7 @@ VkResult vulkanImage::create(VkImageCreateInfo& createInfo) {
     assert(_device != VK_NULL_HANDLE);
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     if (VkResult result = vkCreateImage(_device, &createInfo, nullptr, &_image)) {
-        debug_output("::VULKAN: Failed to create an image\n");
+        debug_error("::VULKAN:ERROR Failed to create an image\n");
         return result;
     }
     return VK_SUCCESS;
@@ -59,7 +59,7 @@ void vulkanImageView::setDevice(VkDevice device) {
 VkResult vulkanImageView::create(const VkImageViewCreateInfo& createInfo) {
     assert(_device != VK_NULL_HANDLE);
     if (VkResult result = vkCreateImageView(_device, &createInfo, nullptr, &_image_view)) {
-        debug_output("::VULKAN: Failed to create an image view\n");
+        debug_error("::VULKAN:ERROR Failed to create an image view\n");
         return result;
     }
     return VK_SUCCESS;

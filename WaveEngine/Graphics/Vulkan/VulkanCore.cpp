@@ -57,19 +57,19 @@ bool initialize() {
 		return false;
 	}
 
-	VKbCall(vk_ctx.initialize(), "::VULKAN: failed to initialize Vulkan Context\n");
+	VKbCall(vk_ctx.initialize(), "::VULKAN:ERROR Failed to initialize Vulkan Context\n");
 #ifdef _DEBUG
 	vk_ctx.setupDebugMessenger();
 #endif
 
-	VKbCall(immutable_pool.initialize(2048, VKX::immutablePoolSizes), "::VULKAN: failed to initialize immutable descriptor pool\n");
-	VKbCall(per_scene_pool.initialize(256, VKX::perScenePoolSizes), "::VULKAN: failed to initialize per scene descriptor pool\n");
+	VKbCall(immutable_pool.initialize(2048, VKX::immutablePoolSizes), "::VULKAN:ERROR Failed to initialize immutable descriptor pool\n");
+	VKbCall(per_scene_pool.initialize(256, VKX::perScenePoolSizes), "::VULKAN:ERROR Failed to initialize per scene descriptor pool\n");
 	for (u32 i{0}; i < frame_buffer_count; ++i) {
-		VKbCall(per_frame_pool[i].initialize(512, VKX::perFramePoolSizes), "::VULKAN: failed to initialize per frame descriptor pool\n");
+		VKbCall(per_frame_pool[i].initialize(512, VKX::perFramePoolSizes), "::VULKAN:ERROR Failed to initialize per frame descriptor pool\n");
 	}
-	VKbCall(per_draw_pool.initialize(1024, VKX::perDrawPoolSizes), "::VULKAN: failed to initialize per draw descriptor pool\n");
+	VKbCall(per_draw_pool.initialize(1024, VKX::perDrawPoolSizes), "::VULKAN:ERROR Failed to initialize per draw descriptor pool\n");
 
-	SHADERS::initialize();
+	VKbCall(SHADERS::loadEngineShaders(), "::VULKAN:ERROR Failed to load engine built-in shaders");
 
 	return true;
 
@@ -115,7 +115,7 @@ surface create_surface(PLATFORM::window window) {
 	VKX::QueueFamilyIndices indices = VKX::findQueueFamilies(vk_ctx.physical_device(), surfaces[id].surface());
 #if _DEBUG
 	if (!indices.hasPresentSupport()) {
-		debug_output("::VULKAN: Graphics queue doesn't support present on this surface\n");
+		debug_error("::VULKAN:ERROR Graphics queue doesn't support present on this surface\n");
 		assert(indices.hasPresentSupport());
 	}
 #endif
@@ -124,7 +124,7 @@ surface create_surface(PLATFORM::window window) {
 	if (indices.presentFamily != vk_ctx.graphics_queue().familyIndex()) {
 		vk_ctx.present_queue().initialize(vk_ctx.device(), indices.presentFamily);
 #if _DEBUG
-		debug_output("::VULKAN: Using separate present queue\n");
+		debug_output("::VULKAN:WARNING Using separate present queue\n");
 #endif
 	}
 	return surface{id};

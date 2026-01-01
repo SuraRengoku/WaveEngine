@@ -123,7 +123,7 @@ void vulkanSwapChain::create() {
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO
 
-    VKCall(vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swap_chain), "::VULKAN: failed to create a swap chain\n");
+    VKCall(vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swap_chain), "::VULKAN:ERROR Failed to create a swap chain\n");
 
     vkGetSwapchainImagesKHR(_device, _swap_chain, &imageCount, nullptr);
     _images.resize(imageCount);
@@ -132,7 +132,7 @@ void vulkanSwapChain::create() {
     createImageViews();
 
 #ifdef _DEBUG
-    debug_output("::VULKAN: Swapchain successfully created\n");
+    debug_output("::VULKAN:INFO Swapchain successfully created\n");
 #endif
 }
 

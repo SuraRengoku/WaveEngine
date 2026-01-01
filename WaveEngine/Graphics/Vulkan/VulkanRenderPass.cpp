@@ -22,7 +22,7 @@ void vulkanRenderPass::cmdBegin(VkCommandBuffer commandBuffer, VkFramebuffer fra
 VkResult vulkanRenderPass::create(const VkRenderPassCreateInfo& createInfo) {
     assert(_device != VK_NULL_HANDLE);
     if (VkResult result = vkCreateRenderPass(_device, &createInfo, nullptr, &_renderPass)) {
-        debug_output("::VULKAN: Failed to create a render pass");
+        debug_error("::VULKAN:ERROR Failed to create a render pass");
         return result;
     }
     return VK_SUCCESS;

@@ -9,7 +9,7 @@ bool descriptorPool::initialize(VkDescriptorPoolCreateInfo& createInfo) {
 	auto const device{ CORE::device() };
 	assert(device);
 
-	VKCall(vkCreateDescriptorPool(device, &createInfo, nullptr, &_pool), "::VULKAN: failed to create descriptor pool");
+	VKCall(vkCreateDescriptorPool(device, &createInfo, nullptr, &_pool), "::VULKAN:ERROR Failed to create descriptor pool");
 	return true;
 }
 
@@ -52,7 +52,7 @@ descriptorSet descriptorPool::allocate(descriptorSetLayout layout) {
 	allocInfo.pSetLayouts = &vkSetLayout;
 	
 	VkDescriptorSet vkSet{ VK_NULL_HANDLE };
-	VKCall(vkAllocateDescriptorSets(device, &allocInfo, &vkSet), "::VULKAN: failed to allocate descriptor set");
+	VKCall(vkAllocateDescriptorSets(device, &allocInfo, &vkSet), "::VULKAN:ERROR Failed to allocate descriptor set");
 	
 	return descriptorSet{ vkSet };
  }
@@ -75,7 +75,7 @@ UTL::vector<descriptorSet> descriptorPool::allocate(const UTL::vector<descriptor
 	allocInfo.pSetLayouts = vkSetLayouts.data();
 
 	UTL::vector<VkDescriptorSet> vkSets(vkSetLayouts.size(), VK_NULL_HANDLE);
-	VKCall(vkAllocateDescriptorSets(device, &allocInfo, vkSets.data()), "::VULKAN: failed to allocate descriptor sets");
+	VKCall(vkAllocateDescriptorSets(device, &allocInfo, vkSets.data()), "::VULKAN:ERROR Failed to allocate descriptor sets");
 
 	UTL::vector<descriptorSet> result;
 	result.reserve(vkSets.size());
