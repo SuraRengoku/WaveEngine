@@ -133,7 +133,6 @@ void descriptorHeap::free(descriptorHandle& handle) {
 	CORE::set_deferred_releases_flag();
 
 	handle = {};
-	
 }
 
 //// D3D12 TEXTURE ///////////////////////////////////////////////////////////////////////////////////////

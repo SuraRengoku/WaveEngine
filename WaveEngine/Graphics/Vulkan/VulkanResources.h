@@ -1,5 +1,4 @@
 #pragma once
-
 #include "VulkanCommonHeaders.h"
 #include "VulkanCore.h"
 
@@ -66,13 +65,13 @@ public:
 		assert(_pool == VK_NULL_HANDLE);
 	}
 
-	bool initialize(VkDescriptorPoolCreateInfo& createInfo);
-	bool initialize(u32 max_sets, VkDescriptorPoolCreateFlags flags = 0);
-	bool initialize(u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_Sizes, VkDescriptorPoolCreateFlags flags = 0);
+	bool initialize(VkDevice device, VkDescriptorPoolCreateInfo& createInfo);
+	bool initialize(VkDevice device, u32 max_sets, VkDescriptorPoolCreateFlags flags = 0);
+	bool initialize(VkDevice device, u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_Sizes, VkDescriptorPoolCreateFlags flags = 0);
 
 	void release();
 
-	void process_deferred_free( u32 frame_idx);
+	void process_deferred_free(u32 frame_idx);
 
 	[[nodiscard]] descriptorSet allocate(descriptorSetLayout layout);
 	[[nodiscard]] UTL::vector<descriptorSet> allocate(const UTL::vector<descriptorSetLayout>& layouts);
@@ -84,6 +83,7 @@ public:
 
 private:
 	VkDescriptorPool								_pool{ VK_NULL_HANDLE };
+	VkDevice										_device{ VK_NULL_HANDLE };
 	std::mutex										_mutex{};
 	UTL::vector<descriptorSet>						_deferred_free_sets[frame_buffer_count]{};
 	u32												_capacity{ 0 };

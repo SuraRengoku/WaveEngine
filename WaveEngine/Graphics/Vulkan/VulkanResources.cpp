@@ -2,22 +2,20 @@
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
-bool descriptorPool::initialize(VkDescriptorPoolCreateInfo& createInfo) {
+bool descriptorPool::initialize(VkDevice device, VkDescriptorPoolCreateInfo& createInfo) {
+	_device = device;
 	std::lock_guard lock{ _mutex };
 	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 
-	auto const device{ CORE::device() };
-	assert(device);
-
-	VKCall(vkCreateDescriptorPool(device, &createInfo, nullptr, &_pool), "::VULKAN:ERROR Failed to create descriptor pool");
+	VKCall(vkCreateDescriptorPool(_device, &createInfo, nullptr, &_pool), "::VULKAN:ERROR Failed to create descriptor pool");
 	return true;
 }
 
-bool descriptorPool::initialize(u32 max_sets, VkDescriptorPoolCreateFlags flags) {
-	return initialize(max_sets, _pool_sizes, flags);
+bool descriptorPool::initialize(VkDevice device, u32 max_sets, VkDescriptorPoolCreateFlags flags) {
+	return initialize(device, max_sets, _pool_sizes, flags);
 }
 
-bool descriptorPool::initialize(u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_Sizes, VkDescriptorPoolCreateFlags flags) {
+bool descriptorPool::initialize(VkDevice device, u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_Sizes, VkDescriptorPoolCreateFlags flags) {
 	VkDescriptorPoolCreateInfo createInfo{};
 
 	createInfo.flags = flags;
@@ -25,24 +23,22 @@ bool descriptorPool::initialize(u32 max_sets, const UTL::vector<VkDescriptorPool
 	createInfo.poolSizeCount = static_cast<u32>(pool_Sizes.size());
 	createInfo.pPoolSizes = pool_Sizes.data();
 
-	return initialize(createInfo);
+	return initialize(device, createInfo);
 }
 
 void descriptorPool::release() {
 	assert(!_size);
-	
+	// TODO not deferred
+	VK_DESTROY_PTR_BY(vkDestroyDescriptorPool, _device, _pool);
 }
 
 void descriptorPool::process_deferred_free(u32 frame_idx) {
 	std::lock_guard lock{ _mutex };
-	// TODO
+	// TODO deferred_free
 }
 
 descriptorSet descriptorPool::allocate(descriptorSetLayout layout) {
 	std::lock_guard lock{ _mutex };
-
-	auto const device{ CORE::device() };
-	assert(device);
 
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -52,16 +48,13 @@ descriptorSet descriptorPool::allocate(descriptorSetLayout layout) {
 	allocInfo.pSetLayouts = &vkSetLayout;
 	
 	VkDescriptorSet vkSet{ VK_NULL_HANDLE };
-	VKCall(vkAllocateDescriptorSets(device, &allocInfo, &vkSet), "::VULKAN:ERROR Failed to allocate descriptor set");
+	VKCall(vkAllocateDescriptorSets(_device, &allocInfo, &vkSet), "::VULKAN:ERROR Failed to allocate descriptor set");
 	
 	return descriptorSet{ vkSet };
  }
 
 UTL::vector<descriptorSet> descriptorPool::allocate(const UTL::vector<descriptorSetLayout>& layouts) {
 	std::lock_guard lock{ _mutex };
-
-	auto const device{ CORE::device() };
-	assert(device);
 
 	UTL::vector<VkDescriptorSetLayout> vkSetLayouts;
 	for (const auto& layout : layouts) {
@@ -75,7 +68,7 @@ UTL::vector<descriptorSet> descriptorPool::allocate(const UTL::vector<descriptor
 	allocInfo.pSetLayouts = vkSetLayouts.data();
 
 	UTL::vector<VkDescriptorSet> vkSets(vkSetLayouts.size(), VK_NULL_HANDLE);
-	VKCall(vkAllocateDescriptorSets(device, &allocInfo, vkSets.data()), "::VULKAN:ERROR Failed to allocate descriptor sets");
+	VKCall(vkAllocateDescriptorSets(_device, &allocInfo, vkSets.data()), "::VULKAN:ERROR Failed to allocate descriptor sets");
 
 	UTL::vector<descriptorSet> result;
 	result.reserve(vkSets.size());

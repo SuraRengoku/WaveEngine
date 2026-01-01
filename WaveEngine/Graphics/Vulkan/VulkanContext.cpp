@@ -219,7 +219,6 @@ VkResult vulkanContext::pickPhysicalDevice() {
     return VK_NOT_READY;
 }
 
-// TODO
 VkResult vulkanContext::createLogicalDevice() {
     	VKX::QueueFamilyIndices indices = VKX::findQueueFamilies(_adapterContext._physicalDevice);
 	UTL::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
@@ -255,9 +254,9 @@ VkResult vulkanContext::createLogicalDevice() {
 	createInfo.enabledExtensionCount = static_cast<u32>(requiredExtensions);
 	createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 #elif defined(__linux__)
-	// TODO
+	// TODO get linux supported extensions
 #elif defined(__ANDROID__)
-	// TODO
+	// TODO get android supported extensions
 #endif
 
 	if (enableValidationLayers) {

@@ -66,7 +66,7 @@ u32 CreateRenderSurface(HWND host, s32 width, s32 height) {
 	GRAPHICS::render_surface surface{ PLATFORM::create_window(&info), {} };
 	assert(surface.window.is_valid());
 	surfaces.emplace_back(surface);
-	return (u32)surfaces.size() - 1;
+	return static_cast<u32>(surfaces.size()) - 1;
 }
 
 EDITOR_INTERFACE

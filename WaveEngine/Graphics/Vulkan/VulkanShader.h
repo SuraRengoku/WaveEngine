@@ -68,8 +68,8 @@ private:
 public:
     vulkanShader() = default;
     vulkanShader(VkDevice device) : _device(device) {}
-    vulkanShader(VkDevice device, VkShaderModuleCreateInfo& createInfo) : _device(device) {
-
+    vulkanShader(VkDevice device, VkShaderModuleCreateInfo& createInfo, engineShader::id shaderId) : _device(device) {
+        create(createInfo, shaderId);
     }
     vulkanShader(vulkanShader&& other) noexcept {
         VK_MOVE_PTR(_shaderModule);
@@ -88,7 +88,10 @@ public:
         VK_DESTROY_PTR_BY(vkDestroyShaderModule, _device, _shaderModule);
     }
 
-    // TODO
+    void setDevice(VkDevice device) {
+        _device = device;
+    }
+
     VkResult create(VkShaderModuleCreateInfo& createInfo, engineShader::id shaderId);
 };
 

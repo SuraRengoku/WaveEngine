@@ -34,9 +34,9 @@ void recalculate_normals(mesh& m) {
 
 /**
  * @param smoothing_angle angle between adjacent faces
- * smoothing_angle = 0¡ã   ¡ú totally smooth£¨blend normals for all vertices£©
- * smoothing_angle = 90¡ã  ¡ú medium£¨inbetween angle > 90¡ã will not blend normals£©
- * smoothing_angle = 180¡ã ¡ú totally hard£¨each triangle have its own normal£©
+ * smoothing_angle = 0ï¿½ï¿½   ï¿½ï¿½ totally smoothï¿½ï¿½blend normals for all verticesï¿½ï¿½
+ * smoothing_angle = 90ï¿½ï¿½  ï¿½ï¿½ mediumï¿½ï¿½inbetween angle > 90ï¿½ï¿½ will not blend normalsï¿½ï¿½
+ * smoothing_angle = 180ï¿½ï¿½ ï¿½ï¿½ totally hardï¿½ï¿½each triangle have its own normalï¿½ï¿½
  */
 void process_normals(mesh& m, f32 smoothing_angle) {
 	const f32 cos_alpha{ XMScalarCos(pi - smoothing_angle * pi / 180.0f) }; 
@@ -140,8 +140,8 @@ void pack_vertices_static(mesh& m) {
 	for (u32 i{ 0 }; i < num_vertices; ++i) {
 		vertex& v{ m.vertices[i] };
 		const u8 signs{ static_cast<u8>((v.normal.z > 0.0f ? 1 : 0) << 1) };
-		const u16 normal_x{ (u16)pack_float<16>(v.normal.x, -1.0f, 1.0f) };
-		const u16 normal_y{ (u16)pack_float<16>(v.normal.y, -1.0f, 1.0f) };
+		const u16 normal_x{ static_cast<u16>(pack_float<16>(v.normal.x, -1.0f, 1.0f)) };
+		const u16 normal_y{ static_cast<u16>(pack_float<16>(v.normal.y, -1.0f, 1.0f)) };
 		// we can use x and y component to calculate the z component
 		// 
 		// TODO: tangents

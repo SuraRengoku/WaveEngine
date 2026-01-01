@@ -62,12 +62,12 @@ bool initialize() {
 	vk_ctx.setupDebugMessenger();
 #endif
 
-	VKbCall(immutable_pool.initialize(2048, VKX::immutablePoolSizes), "::VULKAN:ERROR Failed to initialize immutable descriptor pool\n");
-	VKbCall(per_scene_pool.initialize(256, VKX::perScenePoolSizes), "::VULKAN:ERROR Failed to initialize per scene descriptor pool\n");
+	VKbCall(immutable_pool.initialize(device(), 2048, VKX::immutablePoolSizes), "::VULKAN:ERROR Failed to initialize immutable descriptor pool\n");
+	VKbCall(per_scene_pool.initialize(device(), 256, VKX::perScenePoolSizes), "::VULKAN:ERROR Failed to initialize per scene descriptor pool\n");
 	for (u32 i{0}; i < frame_buffer_count; ++i) {
-		VKbCall(per_frame_pool[i].initialize(512, VKX::perFramePoolSizes), "::VULKAN:ERROR Failed to initialize per frame descriptor pool\n");
+		VKbCall(per_frame_pool[i].initialize(device(), 512, VKX::perFramePoolSizes), "::VULKAN:ERROR Failed to initialize per frame descriptor pool\n");
 	}
-	VKbCall(per_draw_pool.initialize(1024, VKX::perDrawPoolSizes), "::VULKAN:ERROR Failed to initialize per draw descriptor pool\n");
+	VKbCall(per_draw_pool.initialize(device(), 1024, VKX::perDrawPoolSizes), "::VULKAN:ERROR Failed to initialize per draw descriptor pool\n");
 
 	VKbCall(SHADERS::loadEngineShaders(), "::VULKAN:ERROR Failed to load engine built-in shaders");
 
@@ -76,7 +76,12 @@ bool initialize() {
 }
 
 void shutdown() {
-	
+	immutable_pool.release();
+	per_scene_pool.release();
+	for (auto& pool : per_frame_pool) {
+		pool.release();
+	}
+	per_draw_pool.release();
 }
 
 VkPhysicalDevice physical_device() {
@@ -84,6 +89,7 @@ VkPhysicalDevice physical_device() {
 }
 
 VkDevice device() {
+	assert(vk_ctx.device() != VK_NULL_HANDLE);
 	return vk_ctx.device();
 }
 
@@ -96,7 +102,7 @@ VkQueue present_queue() {
 }
 
 u32 current_frame_index() {
-	// TODO
+	// TODO get current frame index
 	return u32_invalid_id;
 }
 
@@ -131,7 +137,10 @@ surface create_surface(PLATFORM::window window) {
 }
 
 void remove_surface(surface_id id) {
-	
+	// waiting GPU
+	swapchains.remove(id);
+	surfaces[id].destroy(vk_ctx.instance_context());
+	surfaces.remove(id);
 }
 
 void resize_surface(surface_id id, u32 width, u32 height) {

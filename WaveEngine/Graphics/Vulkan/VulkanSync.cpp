@@ -43,7 +43,7 @@ VkResult vulkanFence::create(VkFenceCreateInfo& createInfo, VkFenceCreateFlags f
     return VK_SUCCESS;
 }
 
-// TODO
+// TODO maybe not useful
 VkResult vulkanSemaphore::wait(VkSemaphoreWaitInfo& waitInfo) const {
     waitInfo.pSemaphores = &_semaphore;
     if (VkResult result = vkWaitSemaphores(_device, &waitInfo, UINT64_MAX)) {

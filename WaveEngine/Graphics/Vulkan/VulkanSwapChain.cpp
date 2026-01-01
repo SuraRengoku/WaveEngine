@@ -64,11 +64,11 @@ void vulkanSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilit
         width = rect.right - rect.left;
         height = rect.bottom - rect.top;
 #elif defined(__APPLE__)
-        // TODO
+        // TODO get window handle in MacOS / IOS
 #elif defined(__linux__)
-        // TODO
+        // TODO get window handle in wayland / x11
 #elif defined(__ANDROID__)
-        // TODO
+        // TODO get window handle in android
 #endif
 
         VkExtent2D actualExtent = {width, height};
@@ -121,7 +121,7 @@ void vulkanSwapChain::create() {
     createInfo.preTransform = details.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; // alpha channel should be used to blend between surface window and other windows
     createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO
+    createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO if we have old swapchain
 
     VKCall(vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swap_chain), "::VULKAN:ERROR Failed to create a swap chain\n");
 
@@ -155,7 +155,7 @@ void vulkanSwapChain::createImageViews() {
 
 void vulkanSwapChain::recreate() {
     create();
-    // TODO
+    // TODO recreate related resources
     // create Render Pass
     // create Graphics Pipeline
     // create Color Resources
@@ -167,7 +167,7 @@ void vulkanSwapChain::recreate() {
 void vulkanSwapChain::release() {
     vkDeviceWaitIdle(_device);
 
-    // TODO
+    // TODO before clean swapchain we should clean all resources
     _image_views.clear();
     if (_swap_chain != VK_NULL_HANDLE) {
         vkDestroySwapchainKHR(_device, _swap_chain, nullptr);

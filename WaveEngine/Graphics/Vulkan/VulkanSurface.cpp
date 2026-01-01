@@ -16,18 +16,18 @@ bool vulkanSurface::create(const instanceContext& ctx) {
 #elif defined(__APPLE__)
     VkMetalSurfaceCreateInfoEXT createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
-    // TODO
+    // TODO get window handle in MacOS / IOS
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
     VKCall(vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface), "::VULKAN:ERROR Failed to create a Metal surface");
 #elif defined(__linux__)
 
-    // TODO
+    // TODO wayland / x11
 
 #elif defined(__ANDROID__)
     VkAndroidSurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
-    // TODO
+    // TODO get window handle in android
     createInfo.sNext = nullptr;
     createInfo.flags = 0;
     VKCall(vkCreateAndroidSurfaceKHR(instance, &createInfo, nullptr, &_surface), "::VULKAN:ERROR Failed to create an Android surface");

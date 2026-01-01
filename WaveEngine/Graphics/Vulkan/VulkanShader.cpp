@@ -92,6 +92,7 @@ void unloadEngineShaders() {
 }
 
 VkResult vulkanShader::create(VkShaderModuleCreateInfo& createInfo, engineShader::id shaderId) {
+    assert(_device != VK_NULL_HANDLE);
     auto* spir_v = get_engine_shader(shaderId);
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = spir_v->size() * sizeof(u32);

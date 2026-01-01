@@ -57,7 +57,7 @@ public:
     VK_DEFINE_PTR_TYPE_OPERATOR(_semaphore);
     VK_DEFINE_ADDRESS_FUNCTION(_semaphore);
 
-    // TODO
+    // TODO maybe not useful
     VkResult wait(VkSemaphoreWaitInfo& waitInfo) const;
 
     VkResult create(VkSemaphoreCreateInfo& createInfo, VkSemaphoreCreateFlags flags = 0);
