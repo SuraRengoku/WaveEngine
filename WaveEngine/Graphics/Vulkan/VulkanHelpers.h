@@ -3,7 +3,6 @@
 #include "VulkanCommonHeaders.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::VKX {
-
 //////////////////////////////Descriptor Pool Sizes///////////////////////////////////
 
 // Usage: global textures, samplers, immutable resources
@@ -11,7 +10,7 @@ namespace WAVEENGINE::GRAPHICS::VULKAN::VKX {
 inline UTL::vector<VkDescriptorPoolSize> immutablePoolSizes = {					
 	{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2048},			// static texture / material
 	{VK_DESCRIPTOR_TYPE_SAMPLER, 128},							// static sampler
-	{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 512}						// static image resource
+	{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 512}					// static image resource
 };
 
 // Usage: lights in the scene, environment texture maps, global UBO for scene
@@ -19,7 +18,7 @@ inline UTL::vector<VkDescriptorPoolSize> immutablePoolSizes = {
 inline UTL::vector<VkDescriptorPoolSize> perScenePoolSizes = {
 	{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 128},					// global scene UBO
 	{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256},			// environment map
-	{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64}						// scene data buffer
+	{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64}					// scene data buffer
 };
 
 // Usage: camera matrix, UBO for each frame, temporary resources
@@ -37,6 +36,15 @@ inline UTL::vector<VkDescriptorPoolSize> perDrawPoolSizes = {
 	{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024},					// object UBO
 	{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 512},			// dynamic object data
 	{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512}			// object materials
+};
+
+// Usage: temporary resources
+// Features:
+inline UTL::vector<VkDescriptorPoolSize> deferredPoolSizes = {
+	{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},			// sampled textures waiting to be released
+	{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 512},					// UBO waiting to be released
+	{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},					// storage buffer waiting to be released
+    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 128}			// dynamic UBO waiting to be released
 };
 
 ////////////////////////////////Device Properties////////////////////////////////////

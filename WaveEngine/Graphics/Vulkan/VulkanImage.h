@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
-#include "VulkanCore.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -11,28 +11,45 @@ private:
 
 public:
     vulkanImage() = default;
-    vulkanImage(VkDevice device) : _device(device) {}
-    vulkanImage(VkDevice device, VkImageCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
-    }
+
     DISABLE_COPY(vulkanImage);
-    vulkanImage(vulkanImage&& other) noexcept {
-        VK_MOVE_PTR(_image);
-        VK_MOVE_PTR(_device);
+
+    vulkanImage(const deviceContext& dCtx, const VkImageCreateInfo& createInfo) {
+        create(dCtx, createInfo);
     }
+    vulkanImage(const deviceContext& dCtx, VkImageType type, VkFormat format,
+                    VkExtent3D extent, u32 mLevels, u32 aLayers, VkSampleCountFlagBits samples,
+                    VkImageTiling tiling, VkSharingMode sMode, VkImageLayout iniLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    const VkImageUsageFlags uFlags = 0, const VkImageCreateFlags cFlags = 0, const void* next = nullptr) {
+        create(dCtx, type, format, extent, mLevels, aLayers, samples, tiling, sMode, iniLayout, uFlags, cFlags, next);
+    }
+
+    VK_MOVE_CTOR2(vulkanImage, _image, _device);
+    VK_MOVE_ASSIGN2(vulkanImage, _image, _device);
+
     ~vulkanImage() { VK_DESTROY_PTR_BY(vkDestroyImage, _device, _image); }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_image);
-    VK_DEFINE_ADDRESS_FUNCTION(_image);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image);
 
-    // delayed injection
-    void setDevice(VkDevice device);
+    [[nodiscard]] VkImage getImage() const {
+        assert(_image != VK_NULL_HANDLE);
+        return _image;
+    }
+
+    bool create(const deviceContext& dCtx, const VkImageCreateInfo& createInfo);
+    bool create(const deviceContext& dCtx, VkImageType type, VkFormat format,
+                    VkExtent3D extent, u32 mLevels, u32 aLayers, VkSampleCountFlagBits samples,
+                    VkImageTiling tiling, VkSharingMode sMode, VkImageLayout iniLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    const VkImageUsageFlags uFlags = 0, const VkImageCreateFlags cFlags = 0, const void* next = nullptr);
+
+    bool isValid() const noexcept {
+        return _image != VK_NULL_HANDLE;
+    }
 
     VkMemoryAllocateInfo memoryAllocateInfo(VkPhysicalDevice physical_device, VkMemoryPropertyFlags desiredMemoryProperties) const;
 
-    VkResult bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memoryOffset = 0) const;
-
-    VkResult create(VkImageCreateInfo& createInfo);
+    VkResult bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memoryOffset = 0);
 };
 
 class vulkanImageView {
@@ -42,26 +59,43 @@ private:
 
 public:
     vulkanImageView() = default;
-    vulkanImageView(VkDevice device) : _device(device) {}
-    vulkanImageView(VkDevice device, const VkImageViewCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
-    }
+
     DISABLE_COPY(vulkanImageView);
-    vulkanImageView(vulkanImageView&& other) noexcept {
-        VK_MOVE_PTR(_image_view);
-        VK_MOVE_PTR(_device);
+
+    vulkanImageView(const deviceContext& dCtx, const VkImageViewCreateInfo& createInfo) {
+        create(dCtx, createInfo);
     }
-    ~vulkanImageView() { VK_DESTROY_PTR_BY(vkDestroyImageView, _device, _image_view); }
+    vulkanImageView(const deviceContext& dCtx, VkImage image, VkFormat format,
+                    VkImageViewType type, VkComponentMapping components, const VkImageSubresourceRange& range,
+                    const VkImageViewCreateFlags flags = 0 , const void* next = nullptr) {
+        create(dCtx, image, format, type, components, range, flags, next);
+    }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_image_view);
-    VK_DEFINE_ADDRESS_FUNCTION(_image_view);
+    VK_MOVE_CTOR2(vulkanImageView, _image_view, _device);
+    VK_MOVE_ASSIGN2(vulkanImageView, _image_view, _device);
 
-    // delayed injection
-    void setDevice(VkDevice device);
+    ~vulkanImageView() {
+        VK_DESTROY_PTR_BY(vkDestroyImageView, _device, _image_view);
+        assert(_image_view == VK_NULL_HANDLE);
+        _device = VK_NULL_HANDLE;
+    }
 
-    VkResult create(const VkImageViewCreateInfo& createInfo);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image_view);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image_view);
 
-    VkResult create(VkImage image, VkImageViewType viewType, VkFormat format, const VkImageSubresourceRange& subresourceRange, VkImageViewCreateFlags flags = 0);
+    [[nodiscard]] VkImageView getImageView() const {
+        assert(_image_view != VK_NULL_HANDLE);
+        return _image_view;
+    }
+
+    bool create(const deviceContext& dCtx, const VkImageViewCreateInfo& createInfo);
+    bool create(const deviceContext& dCtx, VkImage image, VkFormat format,
+                    VkImageViewType type, const VkComponentMapping& components, const VkImageSubresourceRange& range,
+                    const VkImageViewCreateFlags flags = 0 , const void* next = nullptr);
+
+    bool isValid() const noexcept {
+        return _image_view != VK_NULL_HANDLE;
+    }
 };
 
 }

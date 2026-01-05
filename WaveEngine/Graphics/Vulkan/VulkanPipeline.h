@@ -1,32 +1,59 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
+#include "VulkanContext.h"
 
 namespace  WAVEENGINE::GRAPHICS::VULKAN {
 
+struct pipelineLayoutImpl {
+    VkDevice            device{ VK_NULL_HANDLE };
+    VkPipelineLayout    layout{ VK_NULL_HANDLE };
+
+    ~pipelineLayoutImpl() {
+        if (layout != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(device, layout, nullptr);
+        }
+    }
+};
+
 class vulkanPipelineLayout {
-private:
-    VkPipelineLayout                _pipelineLayout{ VK_NULL_HANDLE };
-    VkDevice                        _device{ VK_NULL_HANDLE };
 public:
     vulkanPipelineLayout() = default;
-    vulkanPipelineLayout(VkDevice device) : _device(device) {}
-    vulkanPipelineLayout(VkDevice device, const VkPipelineLayoutCreateInfo&& createInfo) : _device(device) {
-        create(createInfo);
-    }
-    vulkanPipelineLayout(vulkanPipelineLayout&& other) noexcept {
-        VK_MOVE_PTR(_device);
-        VK_MOVE_PTR(_pipelineLayout);
-    }
 
-    ~vulkanPipelineLayout() {
-        VK_DESTROY_PTR_BY(vkDestroyPipelineLayout, _device, _pipelineLayout);
+    // non-owning view(optional)
+    explicit vulkanPipelineLayout(VkPipelineLayout layout) {
+        auto impl = std::make_shared<pipelineLayoutImpl>();
+        impl->layout = layout;
+        _impl = impl;
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_pipelineLayout);
-    VK_DEFINE_ADDRESS_FUNCTION(_pipelineLayout);
+    vulkanPipelineLayout(const deviceContext& dCtx, const VkPipelineLayoutCreateInfo& createInfo) {
+        create(dCtx, createInfo);
+    }
+    vulkanPipelineLayout(const deviceContext& dCtx,
+                         u32 setLayoutCount, const VkDescriptorSetLayout* pSetLayouts,
+                         u32 pushConstantRangeCount, const VkPushConstantRange* pPushConstantRanges,
+                         VkPipelineLayoutCreateFlags flags = 0, const void* next = nullptr) {
+        create(dCtx, setLayoutCount, pSetLayouts, pushConstantRangeCount, pPushConstantRanges, flags, next);
+    }
 
-    VkResult create(const VkPipelineLayoutCreateInfo& createInfo);
+    [[nodiscard]] VkPipelineLayout pipelineLayout() const {
+        return _impl ? _impl->layout : VK_NULL_HANDLE;
+    }
+
+    [[nodiscard]] bool isValid() const noexcept {
+        return _impl && _impl->layout != VK_NULL_HANDLE;
+    }
+
+    VkResult create(const deviceContext& dCtx, const VkPipelineLayoutCreateInfo& createInfo);
+    VkResult create(const deviceContext& dCtx,
+                    u32 setLayoutCount, const VkDescriptorSetLayout* pSetLayouts,
+                    u32 pushConstantRangeCount, const VkPushConstantRange* pPushConstantRanges,
+                    VkPipelineLayoutCreateFlags flags = 0, const void* next = nullptr);
+
+private:
+    std::shared_ptr<pipelineLayoutImpl> _impl;
 };
+
 
 class vulkanPipelineCreateInfoPack {
     // Pipeline
@@ -90,37 +117,40 @@ private:
 
 public:
     vulkanPipeline() = default;
-    vulkanPipeline(VkDevice device) : _device(device) {}
-    vulkanPipeline(VkDevice device, const VkGraphicsPipelineCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
+    vulkanPipeline(const deviceContext& dCtx, const VkGraphicsPipelineCreateInfo& createInfo)  {
+        create(dCtx, createInfo);
     }
-    vulkanPipeline(VkDevice device, const VkComputePipelineCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
+    vulkanPipeline(const deviceContext& dCtx, const VkComputePipelineCreateInfo& createInfo) {
+        create(dCtx, createInfo);
     }
-    vulkanPipeline(VkDevice device, const VkRayTracingPipelineCreateInfoKHR& createInfo) : _device(device) {
-        create(createInfo);
+    vulkanPipeline(const deviceContext& dCtx,  const VkRayTracingPipelineCreateInfoKHR& createInfo) {
+        create(dCtx, createInfo);
     }
 
-    vulkanPipeline(vulkanPipeline&& other) noexcept {
-        VK_MOVE_PTR(_pipeline);
-        VK_MOVE_PTR(_device);
-    }
+    VK_MOVE_CTOR2(vulkanPipeline, _pipeline, _device);
+    VK_MOVE_ASSIGN2(vulkanPipeline, _pipeline, _device);
+
     ~vulkanPipeline() {
         VK_DESTROY_PTR_BY(vkDestroyPipeline, _device, _pipeline);
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_pipeline);
-    VK_DEFINE_ADDRESS_FUNCTION(_pipeline);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_pipeline);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_pipeline);
 
-    void setDevice(VkDevice device) {
-        _device = device;
+    [[nodiscard]] VkPipeline pipeline() const {
+        assert(_pipeline != VK_NULL_HANDLE);
+        return _pipeline;
     }
 
-    VkResult create(const VkGraphicsPipelineCreateInfo& createInfo);
-    VkResult create(const VkComputePipelineCreateInfo& createInfo);
+    // we hope that the createInfo can be defined explicitly before create the pipeline.
+    // Thus, we do not provide detailed-parameter create function.
+    VkResult create(const deviceContext& dCtx, const VkGraphicsPipelineCreateInfo& createInfo);
+    VkResult create(const deviceContext& dCtx, const VkComputePipelineCreateInfo& createInfo);
 
     // TODO currently not useful because of deferred operation
-    VkResult create(const VkRayTracingPipelineCreateInfoKHR& createInfo);
+    VkResult create(const deviceContext& dCtx, const VkRayTracingPipelineCreateInfoKHR& createInfo);
+
+    bool isValid() const noexcept { return _pipeline; }
 };
 
 }

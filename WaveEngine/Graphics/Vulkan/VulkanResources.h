@@ -1,31 +1,69 @@
 #pragma once
 #include "VulkanCommonHeaders.h"
-#include "VulkanCore.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
-class descriptorSetLayout {
-public:
-	explicit descriptorSetLayout(const VkDescriptorSetLayout& layout) : _layout(layout) {}
+struct descriptorSetLayoutImpl {
+	VkDevice                device{ VK_NULL_HANDLE };
+	VkDescriptorSetLayout   layout{ VK_NULL_HANDLE };
 
-	[[nodiscard]] constexpr VkDescriptorSetLayout layout() const { return _layout; }
-	[[nodiscard]] constexpr bool is_valid() const { return _layout != VK_NULL_HANDLE; }
+	~descriptorSetLayoutImpl() {
+		if (layout != VK_NULL_HANDLE) {
+			vkDestroyDescriptorSetLayout(device, layout, nullptr);
+		}
+	}
+};
+
+class vulkanDescriptorSetLayout {
+public:
+    vulkanDescriptorSetLayout() = default;
+
+    // non-owning view（optional）
+    explicit vulkanDescriptorSetLayout(VkDescriptorSetLayout layout) {
+        auto impl = std::make_shared<descriptorSetLayoutImpl>();
+        impl->layout = layout;
+        _impl = impl;
+    }
+
+    vulkanDescriptorSetLayout(const deviceContext& dCtx, const VkDescriptorSetLayoutCreateInfo& createInfo) {
+        create(dCtx, createInfo);
+    }
+
+    vulkanDescriptorSetLayout(const deviceContext& dCtx,
+                         u32 bindingCount, const VkDescriptorSetLayoutBinding* pBindings,
+                         VkDescriptorSetLayoutCreateFlags flags = 0, const void* next = nullptr) {
+        create(dCtx, bindingCount, pBindings, flags, next);
+    }
+
+    [[nodiscard]] VkDescriptorSetLayout layout() const {
+        return _impl ? _impl->layout : VK_NULL_HANDLE;
+    }
+    [[nodiscard]] bool is_valid() const {
+        return _impl && _impl->layout != VK_NULL_HANDLE;
+    }
+
+    VkResult create(const deviceContext& dCtx, const VkDescriptorSetLayoutCreateInfo& createInfo);
+    VkResult create(const deviceContext& dCtx,
+					u32 bindingCount, const VkDescriptorSetLayoutBinding* pBindings,
+                    VkDescriptorSetLayoutCreateFlags flags = 0, const void* next = nullptr);
 
 private:
-	VkDescriptorSetLayout		_layout{ VK_NULL_HANDLE };
+    std::shared_ptr<descriptorSetLayoutImpl> _impl;
 };
 
 
-class descriptorSet {
+// non-owning handle
+class vulkanDescriptorSetHandle {
 public:
-	DISABLE_COPY(descriptorSet);
+	DISABLE_COPY(vulkanDescriptorSetHandle);
 
-	explicit descriptorSet(const VkDescriptorSet& set) : _set(set) {}
-	descriptorSet(descriptorSet&& other) noexcept : _set(other.set()) {
+	explicit vulkanDescriptorSetHandle(const VkDescriptorSet& set) : _set(set) {}
+	vulkanDescriptorSetHandle(vulkanDescriptorSetHandle&& other) noexcept : _set(other.set()) {
 		other._set = VK_NULL_HANDLE;
 	}
 
-	descriptorSet& operator=(descriptorSet&& other) noexcept {
+	vulkanDescriptorSetHandle& operator=(vulkanDescriptorSetHandle&& other) noexcept {
 		if (this != &other) {
 			assert(_set == VK_NULL_HANDLE); // make sure already released
 			_set = other._set;
@@ -38,30 +76,49 @@ public:
 
 	static void update();
 
-	~descriptorSet() {
+	~vulkanDescriptorSetHandle() {
+		// wait for deferred release
 		assert(_set == VK_NULL_HANDLE);
 	}
 
 	[[nodiscard]] constexpr VkDescriptorSet set() const { return _set; }
 	[[nodiscard]] constexpr bool is_valid() const { return _set != VK_NULL_HANDLE; }
 
-	u32							_index{ u32_invalid_id };
+	// u32							_index{ u32_invalid_id };
+
 private:
-	VkDescriptorSet				_set = VK_NULL_HANDLE;
+	void invalidate() noexcept {
+		_set = VK_NULL_HANDLE;
+#if _DEBUG
+		container = nullptr;
+#endif
+	}
+
+	VkDescriptorSet				_set{ VK_NULL_HANDLE };
 #ifdef _DEBUG
-	friend class descriptorPool;
-	descriptorPool*				container{ nullptr };
+	friend class vulkanDescriptorPool;
+	vulkanDescriptorPool*				container{ nullptr };
 #endif
 };
 
+enum class descriptorPoolPolicy : u8 {
+	NeverFree,				// immutable
+	BulkReset,				// per_scene
+	PerFrameReset,			// per_frame
+	Linear,					// per_draw
+	DeferredFree,			// runtime / hot-reload
+};
 
-class descriptorPool {
+class vulkanDescriptorPool {
 public:
-	descriptorPool() = default;
-	explicit descriptorPool(const UTL::vector<VkDescriptorPoolSize>& poolSizes) : _pool_sizes(poolSizes) {};
-	DISABLE_COPY_AND_MOVE(descriptorPool);
+	vulkanDescriptorPool() : _policy(descriptorPoolPolicy::PerFrameReset) {}
+	explicit vulkanDescriptorPool(descriptorPoolPolicy policy) : _policy(policy) {}
+	explicit vulkanDescriptorPool(descriptorPoolPolicy policy,  const UTL::vector<VkDescriptorPoolSize>& poolSizes)
+		: _policy(policy), _pool_sizes(poolSizes) {}
 
-	~descriptorPool() {
+	DISABLE_COPY_AND_MOVE(vulkanDescriptorPool);
+
+	~vulkanDescriptorPool() {
 		assert(_pool == VK_NULL_HANDLE);
 	}
 
@@ -69,23 +126,33 @@ public:
 	bool initialize(VkDevice device, u32 max_sets, VkDescriptorPoolCreateFlags flags = 0);
 	bool initialize(VkDevice device, u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_Sizes, VkDescriptorPoolCreateFlags flags = 0);
 
+	// Calling this will invalidate all sets in the pool immediately
+	// before calling reset you have to make sure all sets in the pool will no longer be used by GPU
+	void reset();
+
+	void free(vulkanDescriptorSetHandle& descSet);
+
 	void release();
+	// after frame fence signaled
+	void process_deferred_free();
 
-	void process_deferred_free(u32 frame_idx);
-
-	[[nodiscard]] descriptorSet allocate(descriptorSetLayout layout);
-	[[nodiscard]] UTL::vector<descriptorSet> allocate(const UTL::vector<descriptorSetLayout>& layouts);
-	void free(descriptorSet& descSet, u32 current_frame_index);
+	[[nodiscard]] vulkanDescriptorSetHandle allocate(vulkanDescriptorSetLayout layout);
+	[[nodiscard]] UTL::vector<vulkanDescriptorSetHandle> allocate(const UTL::vector<vulkanDescriptorSetLayout>& layouts);
 
 	[[nodiscard]] constexpr VkDescriptorPool pool() const { return _pool; }
 	[[nodiscard]] constexpr u32 capacity() const { return _capacity; }
 	[[nodiscard]] constexpr u32 size() const { return _size; }
 
 private:
+	descriptorPoolPolicy							_policy;
+
+	// std::unique_ptr<u32[]>							_free_handles{};
+	// only used when pool is freed deferred
+	UTL::vector<VkDescriptorSet>					_deferred_free_sets{};
+
 	VkDescriptorPool								_pool{ VK_NULL_HANDLE };
 	VkDevice										_device{ VK_NULL_HANDLE };
 	std::mutex										_mutex{};
-	UTL::vector<descriptorSet>						_deferred_free_sets[frame_buffer_count]{};
 	u32												_capacity{ 0 };
 	u32												_size{ 0 };
 	const UTL::vector<VkDescriptorPoolSize>			_pool_sizes{};

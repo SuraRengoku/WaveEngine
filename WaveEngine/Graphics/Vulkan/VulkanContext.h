@@ -104,8 +104,10 @@ struct frameContext {
  */
 class vulkanContext {
 public:
+	vulkanContext() = default;
+
     bool initialize();
-    void shutdown();
+    void shutdown() const;
 
     // -- instance / device --
     VkInstance instance() const { return _instanceContext._instance; }

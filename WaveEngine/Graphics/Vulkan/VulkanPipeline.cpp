@@ -2,13 +2,39 @@
 
 namespace  WAVEENGINE::GRAPHICS::VULKAN {
 
-VkResult vulkanPipelineLayout::create(const VkPipelineLayoutCreateInfo& createInfo) {
-    assert(_device != VK_NULL_HANDLE);
-    if (VkResult result = vkCreatePipelineLayout(_device, &createInfo, nullptr, &_pipelineLayout)) {
+VkResult vulkanPipelineLayout::create(const deviceContext& dCtx, const VkPipelineLayoutCreateInfo& createInfo) {
+    assert(!_impl && "::VULKAN:ERROR PipelineLayout already created\n");
+
+    auto impl = std::make_shared<pipelineLayoutImpl>();
+    impl->device = dCtx._device;
+
+    if (VkResult result = vkCreatePipelineLayout(
+        dCtx._device,
+        &createInfo,
+        dCtx._allocator,
+        &impl->layout
+    )) {
         debug_error("::VULKAN:ERROR Failed to create a pipeline layout\n");
         return result;
     }
+
+    _impl = std::move(impl);
     return VK_SUCCESS;
+}
+
+VkResult vulkanPipelineLayout::create(const deviceContext& dCtx, u32 setLayoutCount,
+    const VkDescriptorSetLayout* pSetLayouts, u32 pushConstantRangeCount,
+    const VkPushConstantRange* pPushConstantRanges, VkPipelineLayoutCreateFlags flags, const void* next) {
+    VkPipelineLayoutCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    createInfo.pNext = next;
+    createInfo.flags = flags;
+    createInfo.pushConstantRangeCount = pushConstantRangeCount;
+    createInfo.pPushConstantRanges = pPushConstantRanges;
+    createInfo.setLayoutCount = setLayoutCount;
+    createInfo.pSetLayouts = pSetLayouts;
+
+    return create(dCtx, createInfo);
 }
 
 vulkanPipelineCreateInfoPack::vulkanPipelineCreateInfoPack(const vulkanPipelineCreateInfoPack& other) noexcept {
@@ -68,28 +94,34 @@ void vulkanPipelineCreateInfoPack::updateAllArrayAddresses() {
     _dynamicStateCreateInfo.pDynamicStates = _dynamicStates.data();
 }
 
-VkResult vulkanPipeline::create(const VkGraphicsPipelineCreateInfo& createInfo) {
-    assert(_device != VK_NULL_HANDLE);
-    if (VkResult result = vkCreateGraphicsPipelines(_device, nullptr, 1, &createInfo, nullptr, &_pipeline)) {
+VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkGraphicsPipelineCreateInfo& createInfo) {
+    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a pipeline\n");
+    _device = dCtx._device;
+
+    if (VkResult result = vkCreateGraphicsPipelines(_device, nullptr, 1, &createInfo, dCtx._allocator, &_pipeline)) {
         debug_error("::VULKAN:ERROR Failed to create a graphics pipeline\n");
         return result;
     }
     return VK_SUCCESS;
 }
 
-VkResult vulkanPipeline::create(const VkComputePipelineCreateInfo& createInfo) {
-    assert(_device != VK_NULL_HANDLE);
-    if (VkResult result = vkCreateComputePipelines(_device, nullptr, 1, &createInfo, nullptr, &_pipeline)) {
+VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkComputePipelineCreateInfo& createInfo) {
+    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a pipeline\n");
+    _device = dCtx._device;
+
+    if (VkResult result = vkCreateComputePipelines(_device, nullptr, 1, &createInfo, dCtx._allocator, &_pipeline)) {
         debug_error("::VULKAN:ERROR Failed to create a compute pipeline\n");
         return result;
     }
     return VK_SUCCESS;
 }
 
-VkResult vulkanPipeline::create(const VkRayTracingPipelineCreateInfoKHR& createInfo) {
-    assert(_device != VK_NULL_HANDLE);
+VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkRayTracingPipelineCreateInfoKHR& createInfo) {
+    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a pipeline\n");
+    _device = dCtx._device;
+
     // TODO currently not useful because of deferredOperation
-    if (VkResult result = vkCreateRayTracingPipelinesKHR(_device, nullptr, nullptr, 1, &createInfo, nullptr, &_pipeline)) {
+    if (VkResult result = vkCreateRayTracingPipelinesKHR(_device, nullptr, nullptr, 1, &createInfo, dCtx._allocator, &_pipeline)) {
         debug_error("::VULKAN:ERROR Failed to create a ray tracing pipeline\n");
         return result;
     }

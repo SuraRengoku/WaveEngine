@@ -119,6 +119,7 @@
     <ClCompile Include="Graphics\Vulkan\VulkanQueue.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanRenderPass.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanResources.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanSampler.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanShader.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanSurface.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanSwapChain.cpp" />

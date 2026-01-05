@@ -147,9 +147,12 @@ void vulkanSwapChain::createImageViews() {
     range.baseArrayLayer = 0;
     range.layerCount = 1;
 
+    deviceContext dCtx{_device, {}, {}, nullptr};
+    VkComponentMapping defaultComponents{};
+
     for (u32 i{0}; i < _images.size(); ++i) {
-        _image_views[i].setDevice(_device);
-        _image_views[i].create(_images[i], VK_IMAGE_VIEW_TYPE_2D, _surface_format.format, range);
+        assert(!_image_views[i].isValid());
+        _image_views[i].create(dCtx, _images[i], _surface_format.format, VK_IMAGE_VIEW_TYPE_2D, defaultComponents, range);
     }
 }
 

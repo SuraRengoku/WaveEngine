@@ -173,4 +173,78 @@ inline void debug_output(const char* message) {
 
 #define VK_DESTROY_PTR_BY(Func, device, ptr) if(ptr) { Func(device, ptr, nullptr); ptr = VK_NULL_HANDLE; }
 
+////////////////////////////////////////// MOVE CONSTRUCTOR ///////////////////////////////////////
+
+#define VK_MOVE_CTOR1(cName, p0)											\
+		cName(cName&& other) noexcept { VK_MOVE_PTR(p0) }
+
+#define VK_MOVE_CTOR2(cName, p0, p1)										\
+		cName(cName&& other) noexcept { VK_MOVE_PTR(p0) VK_MOVE_PTR(p1) }
+
+#define VK_MOVE_CTOR3(cName, p0, p1, p2)									\
+		cName(cName&& other) noexcept {										\
+			VK_MOVE_PTR(p0) VK_MOVE_PTR(p1) VK_MOVE_PTR(p2)					\
+		}
+
+#define VK_MOVE_CTOR4(cName, p0, p1, p2, p3)								\
+		cName(cName&& other) noexcept {										\
+			VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)									\
+			VK_MOVE_PTR(p2) VK_MOVE_PTR(p3)									\
+		}
+
+#define VK_MOVE_CTOR5(cName, p0, p1, p2, p3, p4)							\
+		cName(cName&& other) noexcept {										\
+			VK_MOVE_PTR(p0) VK_MOVE_PTR(p1) VK_MOVE_PTR(p2)					\
+			VK_MOVE_PTR(p3) VK_MOVE_PTR(p4)									\
+		}
+
+// mixed
+#define VK_MOVE_CTOR_CUSTOM(cName, ...)										\
+		cName(cName&& other) noexcept { __VA_ARGS__ }
+
+//////////////////////////////////////////// MOVE ASSIGNMENT ///////////////////////////////////////
+
+#define VK_MOVE_ASSIGN1(cName, p0)											\
+		cName& operator=(cName&& other) noexcept {							\
+			if(this != &other) {											\
+				VK_MOVE_PTR(p0)												\
+			}																\
+		}
+
+#define VK_MOVE_ASSIGN2(cName, p0, p1)										\
+		cName& operator=(cName&& other) noexcept {							\
+			if(this != &other) {											\
+				VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)								\
+			}																\
+		}
+
+#define VK_MOVE_ASSIGN3(cName, p0, p1, p2)									\
+		cName& operator=(cName&& other) noexcept {							\
+			if(this != &other) {											\
+				VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)								\
+				VK_MOVE_PTR(p2)												\
+			}																\
+		}
+
+#define VK_MOVE_ASSIGN4(cName, p0, p1, p2, p3)								\
+		cName& operator=(cName&& other) noexcept {							\
+			if(this != &other) {											\
+				VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)								\
+				VK_MOVE_PTR(p2) VK_MOVE_PTR(p3)								\
+			}																\
+		}
+
+#define VK_MOVE_ASSIGN5(cName, p0, p1, p2, p3, p4)							\
+		cName& operator=(cName&& other) noexcept {							\
+			if(this != &other) {											\
+				VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)								\
+				VK_MOVE_PTR(p2) VK_MOVE_PTR(p3)								\
+				VK_MOVE_PTR(p4)												\
+			}																\
+		}
+
+// mixed
+#define VK_MOVE_ASSIGN_CUSTOM(cName, ...)										\
+		cName& operator=(cName&& other) noexcept { __VA_ARGS__ }
+
 #include "VulkanHelpers.h"

@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
-#include "VulkanCore.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -11,30 +11,47 @@ private:
 
 public:
     vulkanBuffer() = default;
+
     DISABLE_COPY(vulkanBuffer);
-    vulkanBuffer(VkDevice device) : _device(device) {}
-    vulkanBuffer(VkDevice device, VkBufferCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
+
+    vulkanBuffer(const deviceContext& dCtx, const VkBufferCreateInfo& createInfo) {
+        create(dCtx, createInfo);
     }
-    vulkanBuffer(vulkanBuffer&& other) noexcept {
-        VK_MOVE_PTR(_buffer);
-        VK_MOVE_PTR(_device);
+    vulkanBuffer(const deviceContext& dCtx, VkSharingMode sMode, VkDeviceSize dSize,
+                            const VkBufferCreateFlags cFlags = 0, const VkBufferUsageFlags uFlags = 0,
+                            const void* next = nullptr) {
+        create(dCtx, sMode, dSize, cFlags, uFlags, next);
     }
+
+    VK_MOVE_CTOR2(vulkanBuffer, _buffer, _device);
+    VK_MOVE_ASSIGN2(vulkanBuffer, _buffer, _device);
+
     ~vulkanBuffer() {
         VK_DESTROY_PTR_BY(vkDestroyBuffer, _device, _buffer);
+        assert(_buffer == VK_NULL_HANDLE);
+        _device = VK_NULL_HANDLE;
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_buffer);
-    VK_DEFINE_ADDRESS_FUNCTION(_buffer);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_buffer);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_buffer);
 
-    // delayed injection
-    void setDevice(VkDevice device);
+    [[nodiscard]] VkBuffer getBuffer() const {
+        assert(_buffer != VK_NULL_HANDLE);
+        return _buffer;
+    }
+
+    bool create(const deviceContext& dCtx, const VkBufferCreateInfo& createInfo);
+    bool create(const deviceContext& dCtx, VkSharingMode sMode, VkDeviceSize dSize,
+                            const VkBufferCreateFlags cFlags = 0, const VkBufferUsageFlags uFlags = 0,
+                            const void* next = nullptr);
+
+    bool isValid() const noexcept {
+        return _buffer != VK_NULL_HANDLE;
+    }
 
     VkMemoryAllocateInfo memoryAllocateInfo(VkPhysicalDevice physicalDevice, VkMemoryPropertyFlags desiredMemoryProperties) const;
 
-    VkResult bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memoryOffset = 0) const;
-
-    VkResult create(VkBufferCreateInfo& createInfo);
+    VkResult bindMemory(VkDeviceMemory deviceMemory, VkDeviceSize memoryOffset = 0);
 };
 
 class vulkanBufferView {
@@ -44,31 +61,42 @@ private:
 
 public:
     vulkanBufferView() = default;
+
     DISABLE_COPY(vulkanBufferView);
-    vulkanBufferView(VkDevice device) : _device(device) {}
-    vulkanBufferView(VkDevice device, const VkBufferViewCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
+
+    vulkanBufferView(const deviceContext& dCtx, const VkBufferViewCreateInfo& createInfo) {
+        create(dCtx, createInfo);
     }
-    vulkanBufferView(VkBuffer buffer, VkFormat format, VkDeviceSize offset = 0, VkDeviceSize range = 0 /*, VkBufferViewCreateFlags flags*/) {
-        create(buffer, format, offset, range);
+
+    vulkanBufferView(const deviceContext& dCtx, VkBuffer buffer, VkFormat format, VkDeviceSize offset = 0,
+                    const VkDeviceSize range = 0, const VkBufferViewCreateFlags flags = 0, const void* next = nullptr) {
+        create(dCtx, buffer, format, offset, range, flags, next);
     }
-    vulkanBufferView(vulkanBufferView&& other) noexcept {
-        VK_MOVE_PTR(_buffer_view);
-        VK_MOVE_PTR(_device);
-    }
+
+    VK_MOVE_CTOR2(vulkanBufferView, _buffer_view, _device);
+    VK_MOVE_ASSIGN2(vulkanBufferView, _buffer_view, _device);
+
     ~vulkanBufferView() {
         VK_DESTROY_PTR_BY(vkDestroyBufferView, _device, _buffer_view);
+        assert(_buffer_view == VK_NULL_HANDLE);
+        _device = VK_NULL_HANDLE;
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_buffer_view);
-    VK_DEFINE_ADDRESS_FUNCTION(_buffer_view);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_buffer_view);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_buffer_view);
 
-    // delayed injection
-    void setDevice(VkDevice device);
+    [[nodiscard]] VkBufferView getBufferView() const {
+        assert(_buffer_view != VK_NULL_HANDLE);
+        return _buffer_view;
+    }
 
-    VkResult create(const VkBufferViewCreateInfo& createInfo);
+    bool create(const deviceContext& dCtx, const VkBufferViewCreateInfo& createInfo);
+    bool create(const deviceContext& dCtx, VkBuffer buffer, VkFormat format, VkDeviceSize offset = 0,
+                    const VkDeviceSize range = 0, const VkBufferViewCreateFlags flags = 0, const void* next = nullptr);
 
-    VkResult create(VkBuffer buffer, VkFormat format, VkDeviceSize offset = 0, VkDeviceSize range = 0 /*, VkBufferViewCreateFlags flags*/);
+    bool isValid() const noexcept {
+        return _buffer_view != VK_NULL_HANDLE;
+    }
 };
 
 }

@@ -374,7 +374,7 @@ void shutdown() {
 
 	// shutdown Post-process module
 	POSTP::shutdown();
-	// shutdown gpass module
+	// shutdown g-pass module
 	GPASS::shutdown();
 	// shutdown shader module
 	SHADERS::shutdown();

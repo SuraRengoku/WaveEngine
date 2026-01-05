@@ -2,6 +2,7 @@
 #include "VulkanSurface.h"
 #include "VulkanSwapChain.h"
 #include "VulkanShader.h"
+#include "VulkanCommand.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::CORE {
 
@@ -14,13 +15,16 @@ using swapchainCollection = UTL::freeList<vulkanSwapChain>;
 surfaceCollection					surfaces;
 swapchainCollection					swapchains;
 
-descriptorPool						immutable_pool{};								// never update
-descriptorPool						per_scene_pool{};								// infrequently update
-descriptorPool						per_frame_pool[frame_buffer_count]{};			// frequently update
-descriptorPool						per_draw_pool{};								// most frequently update
+vulkanDescriptorPool						immutable_pool{ descriptorPoolPolicy::NeverFree };										// never update
+vulkanDescriptorPool						per_scene_pool{ descriptorPoolPolicy::BulkReset };										// infrequently update
+vulkanDescriptorPool						per_frame_pool[frame_buffer_count]{ /* default descriptorPoolPolicy::PerFrameReset*/};	// frequently update / reset the pool in each frame
+vulkanDescriptorPool						per_draw_pool{ descriptorPoolPolicy::Linear };											// most frequently update
+vulkanDescriptorPool						deferred_pool{ descriptorPoolPolicy::DeferredFree };									// hot reload / deferred free
 
 u32									deferred_releases_flag[frame_buffer_count];
 std::mutex							deferred_releases_mutex{};
+
+vulkanCommandPool					command_pool{};
 
 // TODO maybe we can move this to specific pass file
 UTL::vector<SHADERS::vulkanShader>	shaders{ SHADERS::engineShader::count };
@@ -41,12 +45,20 @@ bool check_vulkan_runtime() {
 	return true;
 }
 
+void __declspec(noinline) process_deferred_releases() {
+	std::lock_guard lock{ deferred_releases_mutex };
+	deferred_pool.process_deferred_free();
+}
+
 }
 
 namespace DETAIL {
 
 void deferred_release() {
 	const u32 frame_idx{ current_frame_index() };
+	std::lock_guard lock{ deferred_releases_mutex };
+	// TODO
+	set_deferred_releases_flag();
 }
 
 }
@@ -57,31 +69,42 @@ bool initialize() {
 		return false;
 	}
 
+	// create instance -> pick physical device -> create logical device
 	VKbCall(vk_ctx.initialize(), "::VULKAN:ERROR Failed to initialize Vulkan Context\n");
 #ifdef _DEBUG
 	vk_ctx.setupDebugMessenger();
 #endif
 
-	VKbCall(immutable_pool.initialize(device(), 2048, VKX::immutablePoolSizes), "::VULKAN:ERROR Failed to initialize immutable descriptor pool\n");
-	VKbCall(per_scene_pool.initialize(device(), 256, VKX::perScenePoolSizes), "::VULKAN:ERROR Failed to initialize per scene descriptor pool\n");
+	// create descriptor pools
+	VKbCall(immutable_pool.initialize(vk_ctx.device(), 2048, VKX::immutablePoolSizes), "::VULKAN:ERROR Failed to initialize immutable descriptor pool\n");
+	VKbCall(per_scene_pool.initialize(vk_ctx.device(), 256, VKX::perScenePoolSizes), "::VULKAN:ERROR Failed to initialize per scene descriptor pool\n");
 	for (u32 i{0}; i < frame_buffer_count; ++i) {
-		VKbCall(per_frame_pool[i].initialize(device(), 512, VKX::perFramePoolSizes), "::VULKAN:ERROR Failed to initialize per frame descriptor pool\n");
+		VKbCall(per_frame_pool[i].initialize(vk_ctx.device(), 512, VKX::perFramePoolSizes), "::VULKAN:ERROR Failed to initialize per frame descriptor pool\n");
 	}
-	VKbCall(per_draw_pool.initialize(device(), 1024, VKX::perDrawPoolSizes), "::VULKAN:ERROR Failed to initialize per draw descriptor pool\n");
+	VKbCall(per_draw_pool.initialize(vk_ctx.device(), 1024, VKX::perDrawPoolSizes), "::VULKAN:ERROR Failed to initialize per draw descriptor pool\n");
+	VKbCall(deferred_pool.initialize(vk_ctx.device(), 512, VKX::deferredPoolSizes, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT), "::VULKAN:ERROR Failed to initialize deferred descriptor pool\n");
+
+	// create command pool ... inner error message
+	command_pool.initialize(vk_ctx.device_context());
 
 	VKbCall(SHADERS::loadEngineShaders(), "::VULKAN:ERROR Failed to load engine built-in shaders");
 
 	return true;
-
 }
 
 void shutdown() {
+
 	immutable_pool.release();
 	per_scene_pool.release();
 	for (auto& pool : per_frame_pool) {
 		pool.release();
 	}
 	per_draw_pool.release();
+	deferred_pool.release();
+
+	process_deferred_releases();
+
+	vk_ctx.shutdown();
 }
 
 VkPhysicalDevice physical_device() {
@@ -107,7 +130,7 @@ u32 current_frame_index() {
 }
 
 void set_deferred_releases_flag() {
-	
+	deferred_releases_flag[current_frame_index()] = 1; // atomic
 }
 
 surface create_surface(PLATFORM::window window) {
@@ -158,4 +181,5 @@ u32 surface_height(surface_id id) {
 void render_surface(surface_id id) {
 	
 }
+
 }

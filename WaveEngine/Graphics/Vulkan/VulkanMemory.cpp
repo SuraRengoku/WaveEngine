@@ -21,13 +21,19 @@ vulkanDeviceMemory::vulkanDeviceMemory(VkPhysicalDevice physicalDevice,
 VkDeviceSize vulkanDeviceMemory::adjustNonCoherentMemoryRange(VkDeviceSize& size, VkDeviceSize& offset) const {
     assert(_physical_device_properties.nonCoherentAtomSize != 0);
     const VkDeviceSize& nonCoherentAtomSize = _physical_device_properties.nonCoherentAtomSize;
-    VkDeviceSize _offset = offset;
-    // Down alignment offset (rounded down to a multiple of nonCoherentAtomSize)
-    offset = offset / nonCoherentAtomSize * nonCoherentAtomSize;
+    assert(nonCoherentAtomSize > 0);
+
+    VkDeviceSize originalOffset = offset;
+    VkDeviceSize alignedOffset = (offset / nonCoherentAtomSize) * nonCoherentAtomSize; // Down alignment offset (rounded down to a multiple of nonCoherentAtomSize)
+
     // Adjust: make sure covering the original range && Up alignment
-    size = std::min((size + _offset + nonCoherentAtomSize - 1) /
-                    nonCoherentAtomSize * nonCoherentAtomSize, _allocation_size) - offset;
-    return _offset - offset;
+    VkDeviceSize end = std::min(originalOffset + size, _allocation_size);
+    VkDeviceSize alignedEnd = ((end + nonCoherentAtomSize - 1) / nonCoherentAtomSize) * nonCoherentAtomSize;
+
+    offset = alignedOffset;
+    size = alignedEnd - alignedOffset;
+
+    return originalOffset - alignedOffset;
 }
 
 /**
@@ -37,66 +43,85 @@ VkDeviceSize vulkanDeviceMemory::adjustNonCoherentMemoryRange(VkDeviceSize& size
  * @param offset
  * @return result
  */
-VkResult vulkanDeviceMemory::mapMemory(void*& pData, VkDeviceSize size, VkDeviceSize offset) const {
-    VkDeviceSize inverseDeltaOffset = 0;
-    if (!(_memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-        inverseDeltaOffset = adjustNonCoherentMemoryRange(size, offset);
+VkResult vulkanDeviceMemory::mapMemory(void*& pData, VkDeviceSize size, VkDeviceSize offset, memoryMapAccess access) const {
+    // persistent reuse
+    if (_mapped_ptr) {
+        pData = static_cast<u8*>(_mapped_ptr) + (offset - _mapped_offset);
+        return VK_SUCCESS;
     }
-    if (VkResult result = vkMapMemory(_device, _device_memory, offset, size, 0, &pData)) {
+
+    VkDeviceSize delta = 0;
+    VkDeviceSize mapOffset = offset;
+    VkDeviceSize mapSize = size;
+
+    if (!(_memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+        delta = adjustNonCoherentMemoryRange(mapSize, mapOffset);
+    }
+
+    void* ptr = nullptr;
+    if (VkResult result = vkMapMemory(_device, _device_memory, mapOffset, mapSize, 0, &ptr)) {
         debug_error("::VULKAN:ERROR Failed to map the memory\n");
         return result;
     }
-    if (!(_memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-        pData = static_cast<u8*>(pData) + inverseDeltaOffset;
-        VkMappedMemoryRange mappedMemoryRange{};
-        mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-        mappedMemoryRange.memory = _device_memory;
-        mappedMemoryRange.offset = offset;
-        mappedMemoryRange.size = size;
 
-        assert(_device != VK_NULL_HANDLE);
-        if (VkResult result = vkInvalidateMappedMemoryRanges(_device, 1, &mappedMemoryRange)) {
-            debug_error("::VULKAN:ERROR Failed to flush the memory\n");
-            return result;
+    // GPU -> CPU
+    if (access == memoryMapAccess::Read || access == memoryMapAccess::ReadWrite) {
+        if (!(_memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            VkMappedMemoryRange mappedMemoryRange{};
+            mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+            mappedMemoryRange.memory = _device_memory;
+            mappedMemoryRange.offset = mapOffset;
+            mappedMemoryRange.size = mapSize;
+
+            vkInvalidateMappedMemoryRanges(_device, 1, &mappedMemoryRange);
         }
     }
+
+    _mapped_ptr     = ptr;
+    _mapped_offset  = mapOffset;
+    _mapped_size    = mapSize;
+
+    pData = static_cast<u8*>(ptr) + delta;
     return VK_SUCCESS;
 }
 
-VkResult vulkanDeviceMemory::unMapMemory(VkDeviceSize size, VkDeviceSize offset) const {
-    if (!(_memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-        adjustNonCoherentMemoryRange(size, offset);
-        VkMappedMemoryRange mappedMemoryRange{};
-        mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-        mappedMemoryRange.memory = _device_memory;
-        mappedMemoryRange.offset = offset;
-        mappedMemoryRange.size = size;
+VkResult vulkanDeviceMemory::unmapMemory(memoryMapAccess access) const {
+    if (!_mapped_ptr) return VK_SUCCESS;
 
-        if (VkResult result = vkFlushMappedMemoryRanges(_device, 1, &mappedMemoryRange)) {
-            debug_error("::VULKAN:ERROR Failed to flush the memory\n");
-            return result;
+    // CPU -> GPU
+    if (access == memoryMapAccess::Write || access == memoryMapAccess::ReadWrite) {
+        if (!(_memory_property_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            VkMappedMemoryRange mappedMemoryRange{};
+            mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+            mappedMemoryRange.memory = _device_memory;
+            mappedMemoryRange.offset = _mapped_offset;
+            mappedMemoryRange.size = _mapped_size;
+
+            vkFlushMappedMemoryRanges(_device, 1, &mappedMemoryRange);
         }
     }
+
     vkUnmapMemory(_device, _device_memory);
+    _mapped_ptr = nullptr;
     return VK_SUCCESS;
 }
 
-VkResult vulkanDeviceMemory::bufferData(const void* pData_src, VkDeviceSize size, VkDeviceSize offset) const {
-    void* pData_dst;
-    if (VkResult result = mapMemory(pData_dst, size, offset))
-        return result;
-
-    memcpy(pData_dst, pData_src, size_t(size));
-    return unMapMemory(size, offset);
-}
-
-VkResult vulkanDeviceMemory::retrieveData(void* pData_dst, VkDeviceSize size, VkDeviceSize offset) const {
-    void* pData_src;
-    if (VkResult result = mapMemory(pData_src, size, offset))
-        return result;
-    memcpy(pData_dst, pData_src, size_t(size));
-    return unMapMemory(size, offset);
-}
+// VkResult vulkanDeviceMemory::bufferData(const void* pData_src, VkDeviceSize size, VkDeviceSize offset) const {
+//     void* pData_dst;
+//     if (VkResult result = mapMemory(pData_dst, size, offset))
+//         return result;
+//
+//     memcpy(pData_dst, pData_src, size_t(size));
+//     return unMapMemory(size, offset);
+// }
+//
+// VkResult vulkanDeviceMemory::retrieveData(void* pData_dst, VkDeviceSize size, VkDeviceSize offset) const {
+//     void* pData_src;
+//     if (VkResult result = mapMemory(pData_src, size, offset))
+//         return result;
+//     memcpy(pData_dst, pData_src, size_t(size));
+//     return unMapMemory(size, offset);
+// }
 
 VkResult vulkanDeviceMemory::allocate(VkMemoryAllocateInfo& allocateInfo, VkPhysicalDevice physicalDevice) {
     // Initialize physical device properties if not set
@@ -119,17 +144,35 @@ VkResult vulkanDeviceMemory::allocate(VkMemoryAllocateInfo& allocateInfo, VkPhys
     return VK_SUCCESS;
 }
 
-///////////////////////////////////////////////////// VULKAN BUFFER MEMORY //////////////////////////////////////////////////////
-
-VkResult vulkanBufferMemory::create(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferCreateInfo& bufferCreateInfo, VkMemoryPropertyFlags desiredMemoryProperties) {
-    // Set device for both buffer and memory
-    _buffer.setDevice(device);
-    _memory = std::move(vulkanDeviceMemory(device));
-
-    // Create buffer
-    if (VkResult result = _buffer.create(bufferCreateInfo)) {
+VkResult vulkanDeviceMemory::writeMemory(const void* src, VkDeviceSize size, VkDeviceSize offset) const {
+    void* dst = nullptr;
+    if (VkResult result = mapMemory(dst, size, offset, memoryMapAccess::Write)) {
+        debug_error("::VULKAN:ERROR Failed to write memory\n");
         return result;
     }
+
+    memcpy(dst, src, size);
+    return unmapMemory(memoryMapAccess::Write);
+}
+
+VkResult vulkanDeviceMemory::readMemory(void* dst, VkDeviceSize size, VkDeviceSize offset) const {
+    void* src = nullptr;
+    if (VkResult result = mapMemory(src, size, offset, memoryMapAccess::Read)) {
+        debug_error("::VULKAN:ERROR Failed to read memory\n");
+        return result;
+    }
+
+    memcpy(dst, src, size);
+    return unmapMemory(memoryMapAccess::Read);
+}
+
+///////////////////////////////////////////////////// VULKAN BUFFER MEMORY //////////////////////////////////////////////////////
+
+VkResult vulkanBufferMemory::create(VkDevice device, VkPhysicalDevice physicalDevice, const VkBufferCreateInfo& bufferCreateInfo, VkMemoryPropertyFlags desiredMemoryProperties) {
+    // Set device for both buffer and memory
+    _memory = std::move(vulkanDeviceMemory(device));
+    // Create buffer
+    VKbCall(_buffer.create({device, {}, {}, nullptr}, bufferCreateInfo), "::VULKAN:ERROR Can not create buffer memory\n");
 
     // Allocate memory
     VkMemoryAllocateInfo allocateInfo =
@@ -142,11 +185,13 @@ VkResult vulkanBufferMemory::create(VkDevice device, VkPhysicalDevice physicalDe
     }
 
     if (VkResult result = _memory.allocate(allocateInfo, physicalDevice)) {
+        debug_error("::VULKAN:ERROR Can not allocate memory to buffer\n");
         return result;
     }
 
     // Bind buffer to memory
     if (VkResult result = _buffer.bindMemory(_memory)) {
+        debug_error("::VULKAN:ERROR Can not bind buffer to memory\n");
         return result;
     }
 
@@ -155,15 +200,11 @@ VkResult vulkanBufferMemory::create(VkDevice device, VkPhysicalDevice physicalDe
 
 ///////////////////////////////////////////////////// VULKAN IMAGE MEMORY //////////////////////////////////////////////////////
 
-VkResult vulkanImageMemory::create(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo& imageCreateInfo, VkMemoryPropertyFlags desiredMemoryProperties) {
+VkResult vulkanImageMemory::create(VkDevice device, VkPhysicalDevice physicalDevice, const VkImageCreateInfo& imageCreateInfo, VkMemoryPropertyFlags desiredMemoryProperties) {
     // Set device for both image and memory
-    _image.setDevice(device);
     _memory = std::move(vulkanDeviceMemory(device));
-
     // Create image
-    if (VkResult result = _image.create(imageCreateInfo)) {
-        return result;
-    }
+    VKbCall(_image.create({device, {}, {}, nullptr}, imageCreateInfo), "::VULKAN:ERROR Can not create image memory\n");
 
     // Allocate memory
     VkMemoryAllocateInfo allocateInfo =
@@ -176,11 +217,13 @@ VkResult vulkanImageMemory::create(VkDevice device, VkPhysicalDevice physicalDev
     }
 
     if (VkResult result = _memory.allocate(allocateInfo, physicalDevice)) {
+        debug_error("::VULKAN:ERROR Can not allocate memory to image\n");
         return result;
     }
 
     // Bind image to memory
     if (VkResult result = _image.bindMemory(_memory)) {
+        debug_error("::VULKAN:ERROR Can not bind image to memory\n");
         return result;
     }
 

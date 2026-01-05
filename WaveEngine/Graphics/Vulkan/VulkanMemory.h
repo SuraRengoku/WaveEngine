@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "VulkanBuffer.h"
 #include "VulkanCommonHeaders.h"
-#include "VulkanCore.h"
 #include "VulkanImage.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
@@ -9,6 +8,12 @@ namespace WAVEENGINE::GRAPHICS::VULKAN {
 struct PhysicalDeviceMemoryProperties {
     VkDeviceSize                        nonCoherentAtomSize{ 0 };
     VkPhysicalDeviceMemoryProperties    memoryProperties{};
+};
+
+enum class memoryMapAccess : u8 {
+    Read,           // GPU -> CPU
+    Write,          // CPU -> GPU
+    ReadWrite
 };
 
 class vulkanDeviceMemory {
@@ -21,21 +26,31 @@ private:
     VkMemoryPropertyFlags               _memory_property_flags{ 0 };
     PhysicalDeviceMemoryProperties      _physical_device_properties{};
 
+    // persistent mapping support
+    mutable void*                       _mapped_ptr{ nullptr };
+    mutable VkDeviceSize                _mapped_offset{ 0 };
+    mutable VkDeviceSize                _mapped_size{ 0 };
+
 public:
     vulkanDeviceMemory() = default;
-    explicit vulkanDeviceMemory(VkDevice device) : _device(device) {}
-    vulkanDeviceMemory(VkPhysicalDevice physicalDevice, VkDevice device, VkMemoryAllocateInfo& allocInfo);
 
+    explicit vulkanDeviceMemory(VkDevice device) : _device(device) {}
+
+    vulkanDeviceMemory(VkPhysicalDevice physicalDevice, VkDevice device, VkMemoryAllocateInfo& allocInfo);
 
     DISABLE_COPY(vulkanDeviceMemory);
 
-    vulkanDeviceMemory(vulkanDeviceMemory&& other) noexcept {
+    VK_MOVE_CTOR_CUSTOM(vulkanDeviceMemory,
         VK_MOVE_PTR(_device);
         VK_MOVE_PTR(_device_memory);
+        VK_MOVE_PTR(_mapped_ptr);
         VK_MOVE_VALUE(_allocation_size);
         VK_MOVE_VALUE(_memory_property_flags);
         VK_MOVE_STRUCT(_physical_device_properties);
-    }
+        VK_MOVE_VALUE(_mapped_offset);
+        VK_MOVE_VALUE(_mapped_size);
+    );
+
     vulkanDeviceMemory& operator=(vulkanDeviceMemory&& other) noexcept {
         if (this != &other) {
             if (_device_memory != VK_NULL_HANDLE) {
@@ -45,36 +60,44 @@ public:
             VK_MOVE_PTR(_device_memory);
             VK_MOVE_VALUE(_allocation_size);
             VK_MOVE_VALUE(_memory_property_flags);
-            VK_MOVE_STRUCT(_physical_device_properties);
+            VK_MOVE_STRUCT(_physical_device_properties)
+            VK_MOVE_PTR(_mapped_ptr);
+            VK_MOVE_VALUE(_mapped_offset);
+            VK_MOVE_VALUE(_mapped_size);
         }
         return *this;
     }
 
     ~vulkanDeviceMemory() {
+        if (_mapped_ptr != nullptr) {
+            vkUnmapMemory(_device, _device_memory);
+        }
         VK_DESTROY_PTR_BY(vkFreeMemory, _device, _device_memory);
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_device_memory);
-    VK_DEFINE_ADDRESS_FUNCTION(_device_memory);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_device_memory);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_device_memory);
 
-    VkDevice device() const { return _device; }
-    VkDeviceSize allocationSize() const { return _allocation_size; }
+    [[nodiscard]] VkDeviceMemory deviceMemory() const { return _device_memory; }
+    [[nodiscard]] VkDeviceSize allocationSize() const { return _allocation_size; }
+    [[nodiscard]] VkMemoryPropertyFlags memoryProperties() const { return _memory_property_flags; }
 
-    VkMemoryPropertyFlags memoryProperties() const {
-        return _memory_property_flags;
-    }
-
-    VkResult mapMemory(void*& pData, VkDeviceSize size, VkDeviceSize offset = 0) const;
-    VkResult unMapMemory(VkDeviceSize size, VkDeviceSize offset = 0) const;
-    VkResult bufferData(const void* pData_src, VkDeviceSize size, VkDeviceSize offset = 0) const;
-
-    template <typename T>
-    VkResult bufferData(const T& data_src) const {
-        return bufferData(&data_src, sizeof data_src);
-    }
-
-    VkResult retrieveData(void* pData_dst, VkDeviceSize size, VkDeviceSize offset = 0) const;
     VkResult allocate(VkMemoryAllocateInfo& allocateInfo, VkPhysicalDevice physicalDevice);
+
+    VkResult mapMemory(void*& pData, VkDeviceSize size, VkDeviceSize offset, memoryMapAccess access) const;
+    VkResult unmapMemory(memoryMapAccess access) const;
+
+    VkResult writeMemory(const void* src, VkDeviceSize size, VkDeviceSize offset = 0) const;
+    VkResult readMemory(void* dst, VkDeviceSize size, VkDeviceSize offset = 0) const;
+
+    // VkResult bufferData(const void* pData_src, VkDeviceSize size, VkDeviceSize offset = 0) const;
+    //
+    // template <typename T>
+    // VkResult bufferData(const T& data_src) const {
+    //     return bufferData(&data_src, sizeof data_src);
+    // }
+
+    // VkResult retrieveData(void* pData_dst, VkDeviceSize size, VkDeviceSize offset = 0) const;
 };
 
 class vulkanBufferMemory {
@@ -90,47 +113,49 @@ public:
         : _buffer(std::move(other._buffer)), _memory(std::move(other._memory)) {
     }
 
+    vulkanBufferMemory& operator=(vulkanBufferMemory&& other) noexcept {
+        if (this != &other) {
+            _buffer = std::move(other._buffer);
+            _memory = std::move(other._memory);
+        }
+        return *this;
+    }
+
     // Buffer access
-    VkBuffer buffer() const { return _buffer; }
-    const VkBuffer* addressOfBuffer() const { return _buffer.Address(); }
+    [[nodiscard]] VkBuffer buffer() const { return _buffer; }
+    [[nodiscard]] const VkBuffer* addressOfBuffer() const { return _buffer.Address(); }
 
     // Memory access
-    VkDeviceMemory deviceMemory() const { return _memory; }
-
-    const VkDeviceMemory* addressOfDeviceMemory() const {
-        return _memory.Address();
-    }
+    [[nodiscard]] VkDeviceMemory deviceMemory() const { return _memory; }
+    [[nodiscard]] const VkDeviceMemory* addressOfDeviceMemory() const { return _memory.Address(); }
 
     VkDeviceSize allocationSize() const { return _memory.allocationSize(); }
 
-    VkMemoryPropertyFlags memoryProperties() const {
-        return _memory.memoryProperties();
-    }
+    VkMemoryPropertyFlags memoryProperties() const { return _memory.memoryProperties();}
 
     // Memory operations
-    VkResult mapMemory(void*& pData, VkDeviceSize size, VkDeviceSize offset = 0) const {
-        return _memory.mapMemory(pData, size, offset);
+    VkResult mapMemory(void*& pData, VkDeviceSize size, VkDeviceSize offset, memoryMapAccess access) const {
+        return _memory.mapMemory(pData, size, offset, access);
+    }
+    VkResult unMapMemory(memoryMapAccess access) const {
+        return _memory.unmapMemory(access);
     }
 
-    VkResult unMapMemory(VkDeviceSize size, VkDeviceSize offset = 0) const {
-        return _memory.unMapMemory(size, offset);
-    }
-
+    // write
     VkResult bufferData(const void* pData_src, VkDeviceSize size, VkDeviceSize offset = 0) const {
-        return _memory.bufferData(pData_src, size, offset);
+        return _memory.writeMemory(pData_src, size, offset);
     }
-
     template <typename T>
     VkResult bufferData(const T& data_src) const {
-        return _memory.bufferData(data_src);
+        return bufferData(&data_src, sizeof(T));
     }
 
+    // read
     VkResult retrieveData(void* pData_dst, VkDeviceSize size, VkDeviceSize offset = 0) const {
-        return _memory.retrieveData(pData_dst, size, offset);
+        return _memory.readMemory(pData_dst, size, offset);
     }
 
-    // Creation workflow
-    VkResult create(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferCreateInfo& bufferCreateInfo,
+    VkResult create(VkDevice device, VkPhysicalDevice physicalDevice, const VkBufferCreateInfo& bufferCreateInfo,
                     VkMemoryPropertyFlags desiredMemoryProperties);
 };
 
@@ -147,25 +172,27 @@ public:
         : _image(std::move(other._image)), _memory(std::move(other._memory)) {
     }
 
+    vulkanImageMemory& operator=(vulkanImageMemory&& other) noexcept {
+        if (this != &other) {
+            _image = std::move(other._image);
+            _memory = std::move(other._memory);
+        }
+        return *this;
+    }
+
     // Image access
-    VkImage image() const { return _image; }
-    const VkImage* addressOfImage() const { return _image.Address(); }
+    [[nodiscard]] VkImage image() const { return _image; }
+    [[nodiscard]] const VkImage* addressOfImage() const { return _image.Address(); }
 
     // Memory access
-    VkDeviceMemory deviceMemory() const { return _memory; }
-
-    const VkDeviceMemory* addressOfDeviceMemory() const {
-        return _memory.Address();
-    }
+    [[nodiscard]] VkDeviceMemory deviceMemory() const { return _memory; }
+    [[nodiscard]] const VkDeviceMemory* addressOfDeviceMemory() const { return _memory.Address(); }
 
     VkDeviceSize allocationSize() const { return _memory.allocationSize(); }
 
-    VkMemoryPropertyFlags memoryProperties() const {
-        return _memory.memoryProperties();
-    }
+    VkMemoryPropertyFlags memoryProperties() const { return _memory.memoryProperties(); }
 
-    // Creation workflow
-    VkResult create(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo& imageCreateInfo,
+    VkResult create(VkDevice device, VkPhysicalDevice physicalDevice, const VkImageCreateInfo& imageCreateInfo,
                     VkMemoryPropertyFlags desiredMemoryProperties);
 };
 

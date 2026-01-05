@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -10,28 +11,46 @@ private:
 
 public:
     vulkanSampler() = default;
-    vulkanSampler(VkDevice device) : _device(device) {}
-    vulkanSampler(VkDevice device, const VkSamplerCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
+    vulkanSampler(const deviceContext& dCtx, const VkSamplerCreateInfo& createInfo) {
+        create(dCtx, createInfo);
     }
-    vulkanSampler(vulkanSampler&& other) noexcept {
-        VK_MOVE_PTR(_sampler);
-        VK_MOVE_PTR(_device);
+    vulkanSampler(const deviceContext& dCtx, const VkFilter& magFilter, const VkFilter& minFilter,
+                    const VkSamplerMipmapMode& mipmapMode, const VkSamplerAddressMode& addressModeU,
+                    const VkSamplerAddressMode& addressModeV, const VkSamplerAddressMode& addressModeW,
+                    float mipLodBias, VkBool32 anisotropyEnable, float maxAnisotropy,
+                    VkBool32 compareEnable, const VkCompareOp& compareOp, float minLod, float maxLod,
+                    const VkBorderColor& borderColor, VkBool32 unnormalizedCoordinates,
+                    VkSamplerCreateFlags flags = 0, const void* next = nullptr) {
+        create(dCtx, magFilter, minFilter, mipmapMode, addressModeU, addressModeV, addressModeW,
+            mipLodBias, anisotropyEnable, maxAnisotropy, compareEnable, compareOp, minLod, maxLod,
+            borderColor, unnormalizedCoordinates, flags, next);
     }
+
+    VK_MOVE_CTOR2(vulkanSampler, _sampler, _device);
+    VK_MOVE_ASSIGN2(vulkanSampler, _sampler, _device);
+
     ~vulkanSampler() {
         VK_DESTROY_PTR_BY(vkDestroySampler, _device, _sampler);
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_sampler);
-    VK_DEFINE_ADDRESS_FUNCTION(_sampler);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_sampler);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_sampler);
 
-    VkResult create(const VkSamplerCreateInfo& createInfo) {
-        if (VkResult result = vkCreateSampler(_device, &createInfo, nullptr, &_sampler)) {
-            debug_error("::VULKAN:ERROR Failed to create a sampler\n");
-            return result;
-        }
-        return VK_SUCCESS;
+    [[nodiscard]] VkSampler sampler() const {
+        assert(_sampler != VK_NULL_HANDLE);
+        return _sampler;
     }
+
+    VkResult create(const deviceContext& dCtx, const VkSamplerCreateInfo& createInfo);
+    VkResult create(const deviceContext& dCtx, const VkFilter& magFilter, const VkFilter& minFilter,
+                    const VkSamplerMipmapMode& mipmapMode, const VkSamplerAddressMode& addressModeU,
+                    const VkSamplerAddressMode& addressModeV, const VkSamplerAddressMode& addressModeW,
+                    float mipLodBias, VkBool32 anisotropyEnable, float maxAnisotropy,
+                    VkBool32 compareEnable, const VkCompareOp& compareOp, float minLod, float maxLod,
+                    const VkBorderColor& borderColor, VkBool32 unnormalizedCoordinates,
+                    VkSamplerCreateFlags flags = 0, const void* next = nullptr);
+
+    bool isValid() const noexcept { return _sampler != VK_NULL_HANDLE; }
 };
 
 }

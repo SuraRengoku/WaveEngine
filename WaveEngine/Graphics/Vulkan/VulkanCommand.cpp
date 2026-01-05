@@ -4,6 +4,32 @@ namespace WAVEENGINE::GRAPHICS::VULKAN {
 
 ////////////////////////////////////////////// VULKAN COMMAND POOL /////////////////////////////////////////////
 
+bool vulkanCommandPool::initialize(VkDevice device, u32 queueFamilyIndex, const void* next,  VkCommandPoolCreateFlags flags) {
+    assert(_pool == VK_NULL_HANDLE && "::VULKAN:ERROR: Can not reinitialize the command pool\n");
+    _device = device;
+    VkCommandPoolCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.flags = flags;
+    createInfo.queueFamilyIndex = queueFamilyIndex;
+    createInfo.pNext = next;
+
+    VKCall(vkCreateCommandPool(_device, &createInfo, nullptr, &_pool), "::VULKAN:ERROR Failed to create a command pool\n");
+    return true;
+}
+
+bool vulkanCommandPool::initialize(const deviceContext& dCtx, const void* next, VkCommandPoolCreateFlags flags) {
+    assert(_pool == VK_NULL_HANDLE && "::VULKAN:ERROR: Can not reinitialize the command pool\n");
+    _device = dCtx._device;
+    VkCommandPoolCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.pNext = next;
+    createInfo.queueFamilyIndex = dCtx._graphicsQueue.familyIndex();
+    createInfo.flags = flags;
+
+    VKCall(vkCreateCommandPool(_device, &createInfo, dCtx._allocator, &_pool), "::VULKAN:ERROR Failed to create a command pool\n");
+    return true;
+}
+
 VkResult vulkanCommandPool::allocateBuffers(UTL::vector<VkCommandBuffer>& buffers, VkCommandBufferLevel level) const {
     assert(_device != VK_NULL_HANDLE && _pool != VK_NULL_HANDLE);
     VkCommandBufferAllocateInfo allocateInfo{};
@@ -53,23 +79,6 @@ void vulkanCommandPool::freeBuffers(UTL::vector<vulkanCommandBuffer>& buffers) c
 
     vkFreeCommandBuffers(_device, _pool, buffers.size(), reinterpret_cast<const VkCommandBuffer*>(buffers.data()));
     memset(buffers.data(), 0, buffers.size() * sizeof(vulkanCommandBuffer));
-}
-
-VkResult vulkanCommandPool::create(const VkCommandPoolCreateInfo& createInfo) {
-    assert(_device != VK_NULL_HANDLE);
-    if (VkResult result = vkCreateCommandPool(_device, &createInfo, nullptr, &_pool)) {
-        debug_error("::VULKAN:ERROR Failed to create a command pool\n");
-        return result;
-    }
-    return VK_SUCCESS;
-}
-
-VkResult vulkanCommandPool::create(u32 queueFamilyIndex, VkCommandPoolCreateFlags flags) {
-    VkCommandPoolCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    createInfo.queueFamilyIndex = queueFamilyIndex;
-    createInfo.flags = flags;
-    return create(createInfo);
 }
 
 ////////////////////////////////////////////// VULKAN COMMAND BUFFER /////////////////////////////////////////////

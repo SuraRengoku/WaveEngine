@@ -93,12 +93,12 @@ public:
 
 	DISABLE_COPY(d3d12Texture);
 
-	constexpr d3d12Texture(d3d12Texture&& o) :
-		_resource{ o._resource }, _srv{ o._srv } {
+	constexpr d3d12Texture(d3d12Texture&& o) noexcept :
+		_resource{ o._resource }, _srv{ o._srv }  {
 		o.reset(); // reset to default value
 	}
 
-	constexpr d3d12Texture& operator=(d3d12Texture&& o) {
+	constexpr d3d12Texture& operator=(d3d12Texture&& o) noexcept {
 		assert(this != &o);
 		if (this != &o) {
 			release();

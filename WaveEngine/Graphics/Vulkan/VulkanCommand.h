@@ -1,39 +1,34 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
 class vulkanCommandBuffer;
 
 // for better performance, we should allocate different command pools to each thread to avoid accessing conflicts
-class vulkanCommandPool{
+class vulkanCommandPool {
 private:
     VkCommandPool                       _pool{ VK_NULL_HANDLE };
     VkDevice                            _device{ VK_NULL_HANDLE };
 
 public:
     vulkanCommandPool() = default;
-    vulkanCommandPool(VkDevice device) : _device(device) {}
-    vulkanCommandPool(VkDevice device, const VkCommandPoolCreateInfo& createInfo) : _device(device) {
-        create(createInfo);
-    }
-    vulkanCommandPool(VkDevice device, u32 queueFamilyIndex, VkCommandPoolCreateFlags flags = 0) : _device(device) {
-        create(queueFamilyIndex, flags);
-    }
     vulkanCommandPool(vulkanCommandPool&& other) noexcept {
         VK_MOVE_PTR(_pool);
         VK_MOVE_PTR(_device);
     }
     ~vulkanCommandPool() {
         VK_DESTROY_PTR_BY(vkDestroyCommandPool, _device, _pool);
-    }
-    // delayed injection
-    void setDevice(VkDevice device) {
-        _device = device;
+        assert(_pool == VK_NULL_HANDLE);
+        _device = VK_NULL_HANDLE;
     }
 
     VK_DEFINE_PTR_TYPE_OPERATOR(_pool);
     VK_DEFINE_ADDRESS_FUNCTION(_pool);
+
+    bool initialize(VkDevice device, u32 queueFamilyIndex, const void* next = nullptr, VkCommandPoolCreateFlags flags = 0);
+    bool initialize(const deviceContext& dCtx, const void* next = nullptr, VkCommandPoolCreateFlags flags = 0);
 
     VkResult allocateBuffers(UTL::vector<VkCommandBuffer>& buffers, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
     VkResult allocateBuffers(UTL::vector<vulkanCommandBuffer>& buffers, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) const;
@@ -41,8 +36,7 @@ public:
     void freeBuffers(UTL::vector<VkCommandBuffer>& buffers) const;
     void freeBuffers(UTL::vector<vulkanCommandBuffer>& buffers) const;
 
-    VkResult create(const VkCommandPoolCreateInfo& createInfo);
-    VkResult create(u32 queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
+    // no release
 };
 
 class vulkanCommandBuffer {
@@ -52,6 +46,9 @@ private:
 
 public:
     vulkanCommandBuffer() = default;
+
+    DISABLE_COPY(vulkanCommandBuffer);
+
     vulkanCommandBuffer(vulkanCommandBuffer&& other) noexcept {
         VK_MOVE_PTR(_commandBuffer);
     }

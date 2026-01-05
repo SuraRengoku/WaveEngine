@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -10,29 +11,40 @@ private:
     VkDevice                    _device{ VK_NULL_HANDLE };
 
 public:
-    vulkanFence(VkDevice device) : _device(device) {}
-    vulkanFence(VkDevice device, VkFenceCreateInfo& createInfo, VkFenceCreateFlags flags = 0) : _device(device) {
-        create(createInfo, flags);
+    vulkanFence() = default;
+
+    DISABLE_COPY(vulkanFence);
+
+    vulkanFence(const deviceContext& dCtx, VkFenceCreateFlags flags = 0, const void* next = nullptr) {
+        create(dCtx, flags, next);
     }
 
-    vulkanFence(vulkanFence&& other) noexcept {
-        VK_MOVE_PTR(_fence);
-        VK_MOVE_PTR(_device);
-    }
+    VK_MOVE_CTOR2(vulkanFence, _fence, _device);
+    VK_MOVE_ASSIGN2(vulkanFence, _fence, _device);
+
     ~vulkanFence() {
         VK_DESTROY_PTR_BY(vkDestroyFence, _device, _fence);
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_fence);
-    VK_DEFINE_ADDRESS_FUNCTION(_fence);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_fence);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_fence);
 
-    VkResult wait() const;
-    VkResult reset() const;
-    VkResult waitAndReset() const;
+    [[nodiscard]] constexpr VkFence fence() const {
+        assert(_fence != VK_NULL_HANDLE);
+        return _fence;
+    }
 
-    VkResult status() const;
+    VkResult wait();
+    VkResult wait(u64 timeout);
+    VkResult reset();
+    VkResult waitAndReset();
 
-    VkResult create(VkFenceCreateInfo& createInfo, VkFenceCreateFlags flags = 0);
+    // VK_SUCCESS   -> signaled
+    // VK_NOT_READY -> unsignaled
+    // < 0          -> error
+    constexpr VkResult status() const;
+
+    VkResult create(const deviceContext& dCtx, VkFenceCreateFlags flags = 0, const void* next = nullptr);
 };
 
 // Between-Queues Sync / In-Queue Sync
@@ -42,25 +54,33 @@ private:
     VkDevice                    _device{ VK_NULL_HANDLE };
 
 public:
-    vulkanSemaphore(VkDevice device) : _device(device) {}
-    vulkanSemaphore(VkDevice device, VkSemaphoreCreateInfo& createInfo, VkSemaphoreCreateFlags flags = 0) : _device(device) {
-        create(createInfo, flags);
+    vulkanSemaphore() = default;
+
+    DISABLE_COPY(vulkanSemaphore);
+
+    vulkanSemaphore(const deviceContext& dCtx, VkSemaphoreCreateFlags flags = 0, const void* next = nullptr) {
+        create(dCtx, flags, next);
     }
-    vulkanSemaphore(vulkanSemaphore&& other) noexcept {
-        VK_MOVE_PTR(_semaphore);
-        VK_MOVE_PTR(_device);
-    }
+
+    VK_MOVE_CTOR2(vulkanSemaphore, _semaphore, _device);
+    VK_MOVE_ASSIGN2(vulkanSemaphore, _semaphore, _device);
+
     ~vulkanSemaphore() {
         VK_DESTROY_PTR_BY(vkDestroySemaphore, _device, _semaphore);
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_semaphore);
-    VK_DEFINE_ADDRESS_FUNCTION(_semaphore);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_semaphore);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_semaphore);
+
+    [[nodiscard]] constexpr VkSemaphore semaphore() const {
+        assert(_semaphore != VK_NULL_HANDLE);
+        return _semaphore;
+    }
 
     // TODO maybe not useful
     VkResult wait(VkSemaphoreWaitInfo& waitInfo) const;
 
-    VkResult create(VkSemaphoreCreateInfo& createInfo, VkSemaphoreCreateFlags flags = 0);
+    VkResult create(const deviceContext& dCtx, VkSemaphoreCreateFlags flags = 0, const void* next = nullptr);
 };
 
 // Pipeline barrier
@@ -78,32 +98,53 @@ private:
     VkDevice                    _device{ VK_NULL_HANDLE };
 
 public:
-    vulkanEvent(VkDevice device) : _device(device) {}
-    vulkanEvent(VkDevice device, VkEventCreateInfo& createInfo, VkEventCreateFlags flags = 0) : _device(device) {
-        create(createInfo, flags);
+    vulkanEvent() = default;
+
+    DISABLE_COPY(vulkanEvent);
+
+    vulkanEvent(const deviceContext& dCtx, VkEventCreateFlags flags = 0, const void* next = nullptr) {
+        create(dCtx, flags, next);
     }
-    vulkanEvent(vulkanEvent&& other) noexcept {
-        VK_MOVE_PTR(_event);
-        VK_MOVE_PTR(_device);
-    }
+
+    VK_MOVE_CTOR2(vulkanEvent, _event, _device);
+    VK_MOVE_ASSIGN2(vulkanEvent, _event, _device);
+
     ~vulkanEvent() {
         VK_DESTROY_PTR_BY(vkDestroyEvent, _device, _event);
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_event);
-    VK_DEFINE_ADDRESS_FUNCTION(_event);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_event);
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_event);
 
-    void cmdSet(VkCommandBuffer commandBuffer, VkPipelineStageFlags stageFrom) const;
-    void cmdReset(VkCommandBuffer commandBuffer, VkPipelineStageFlags stageFrom) const;
-    void cmdWait(VkCommandBuffer commandBuffer, VkPipelineStageFlags stageFrom, VkPipelineStageFlags stageTo,
-                UTL::vector<VkMemoryBarrier> memoryBarriers, UTL::vector<VkBufferMemoryBarrier> bufferMemoryBarriers,
-                UTL::vector<VkImageMemoryBarrier> imageMemoryBarriers) const;
+    [[nodiscard]] constexpr VkEvent event() const {
+        assert(_event != VK_NULL_HANDLE);
+        return _event;
+    }
+
+    void cmdSet(VkCommandBuffer commandBuffer, VkPipelineStageFlags stageMask) const;
+    void cmdReset(VkCommandBuffer commandBuffer, VkPipelineStageFlags stageMask) const;
+
+    void cmdWait(VkCommandBuffer cmd, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
+                            uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers,
+                            uint32_t bufferBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers,
+                            uint32_t imageBarrierCount, const VkImageMemoryBarrier* pImageBarriers) const;
+
+    // set sType outside
+    void cmdWait(VkCommandBuffer cmdBuffer,
+                VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
+                const UTL::vector<VkMemoryBarrier>& memoryBarriers,
+                const UTL::vector<VkBufferMemoryBarrier>& bufferMemoryBarriers,
+                const UTL::vector<VkImageMemoryBarrier>& imageBarriers) const;
 
     VkResult set() const;
     VkResult reset() const;
+
+    // VK_EVENT_SET     -> set
+    // VK_EVENT_RESET   -> unset
+    // < 0              -> error
     VkResult status() const;
 
-    VkResult create(VkEventCreateInfo& createInfo, VkEventCreateFlags flags = 0);
+    VkResult create(const deviceContext& dCtx, VkEventCreateFlags flags = 0, const void* next = nullptr);
 };
 
 }

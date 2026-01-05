@@ -123,9 +123,15 @@ bool vulkanContext::initialize() {
 	return result;
 }
 
-void vulkanContext::shutdown() {
-	vkDestroyInstance(_instanceContext._instance, _instanceContext._allocator);
+void vulkanContext::shutdown() const {
+	vkDeviceWaitIdle(_deviceContext._device);
 	vkDestroyDevice(_deviceContext._device, _deviceContext._allocator);
+#ifdef _DEBUG
+	if (enableValidationLayers && _callback != VK_NULL_HANDLE) {
+		DestroyDebugUtilsMessengerEXT(_instanceContext._instance, _callback, _instanceContext._allocator);
+	}
+#endif
+	vkDestroyInstance(_instanceContext._instance, _instanceContext._allocator);
 }
 
 VkResult vulkanContext::createInstance() {
@@ -163,6 +169,8 @@ VkResult vulkanContext::createInstance() {
     }
 
     VKCall(vkCreateInstance(&instanceInfo, nullptr, &_instanceContext._instance), "::VULKAN:ERROR Failed to create instance\n");
+
+	// TODO add instance callback
 
     u32 extensionsCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionsCount, nullptr);
