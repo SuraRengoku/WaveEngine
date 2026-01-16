@@ -1,7 +1,8 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
 #include "VulkanQueue.h"
-#include "VulkanResources.h"
+#include "VulkanCommand.h"
+#include "VulkanSync.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -79,9 +80,11 @@ struct deviceContext {
     Resource creation and destruction are managed by higher-level systems.
  */
 struct frameContext {
-    u32                                 _frameIndex{};
-    VkCommandBuffer                     _cmd;
-    VkFence                             _fence;
+	u32								frame_index{ u32_invalid_id };
+	vulkanCommandBuffer				graphics_cmd_buffer;
+	vulkanFence						fence;
+	vulkanSemaphore					image_available_semaphore;
+	vulkanSemaphore					render_finished_semaphore;
 };
 
 /*

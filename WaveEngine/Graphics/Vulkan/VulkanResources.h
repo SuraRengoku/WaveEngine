@@ -95,9 +95,9 @@ private:
 	}
 
 	VkDescriptorSet				_set{ VK_NULL_HANDLE };
-#ifdef _DEBUG
 	friend class vulkanDescriptorPool;
-	vulkanDescriptorPool*				container{ nullptr };
+#ifdef _DEBUG
+	vulkanDescriptorPool*		container{ nullptr };
 #endif
 };
 

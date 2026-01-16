@@ -18,7 +18,7 @@ struct SwapChainSupportDetails {
 
 class vulkanSwapChain {
 public:
-    constexpr static u32 buffer_count{ 3 };
+    constexpr static u32 buffer_count{ frame_buffer_count };
     constexpr static VkFormat default_back_buffer_format{ VK_FORMAT_UNDEFINED };
 
     vulkanSwapChain() = default;
@@ -40,6 +40,8 @@ public:
     [[nodiscard]] const VkPresentModeKHR& presentMode() const { return _present_mode; }
     [[nodiscard]] const VkSwapchainKHR& swapchain() const { return _swap_chain; }
 
+    const UTL::vector<VkImage>& images() const { return _images; }
+    const UTL::vector<vulkanImageView>& imageViews() const { return _image_views; }
 private:
     void createImageViews();
     DETAIL::SwapChainSupportDetails querySwapChainSupport() const;

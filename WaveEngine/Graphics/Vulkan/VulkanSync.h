@@ -1,8 +1,9 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
-#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
+
+struct deviceContext;
 
 // Host-Device Sync
 class vulkanFence {
@@ -23,7 +24,7 @@ public:
     VK_MOVE_ASSIGN2(vulkanFence, _fence, _device);
 
     ~vulkanFence() {
-        VK_DESTROY_PTR_BY(vkDestroyFence, _device, _fence);
+        destroy();
     }
 
     [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_fence);
@@ -34,17 +35,19 @@ public:
         return _fence;
     }
 
-    VkResult wait();
-    VkResult wait(u64 timeout);
+    VkResult wait() const;
+    VkResult wait(u64 timeout) const;
+    VkResult wait(VkBool32 waitAll, u64 timeout) const;
     VkResult reset();
     VkResult waitAndReset();
 
     // VK_SUCCESS   -> signaled
     // VK_NOT_READY -> unsignaled
     // < 0          -> error
-    constexpr VkResult status() const;
+    VkResult status() const;
 
     VkResult create(const deviceContext& dCtx, VkFenceCreateFlags flags = 0, const void* next = nullptr);
+    void destroy() noexcept;
 };
 
 // Between-Queues Sync / In-Queue Sync
@@ -66,7 +69,7 @@ public:
     VK_MOVE_ASSIGN2(vulkanSemaphore, _semaphore, _device);
 
     ~vulkanSemaphore() {
-        VK_DESTROY_PTR_BY(vkDestroySemaphore, _device, _semaphore);
+        destroy();
     }
 
     [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_semaphore);
@@ -81,6 +84,7 @@ public:
     VkResult wait(VkSemaphoreWaitInfo& waitInfo) const;
 
     VkResult create(const deviceContext& dCtx, VkSemaphoreCreateFlags flags = 0, const void* next = nullptr);
+    void destroy() noexcept;
 };
 
 // Pipeline barrier

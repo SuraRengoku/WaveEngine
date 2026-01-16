@@ -209,6 +209,7 @@ inline void debug_output(const char* message) {
 			if(this != &other) {											\
 				VK_MOVE_PTR(p0)												\
 			}																\
+			return *this;													\
 		}
 
 #define VK_MOVE_ASSIGN2(cName, p0, p1)										\
@@ -216,6 +217,7 @@ inline void debug_output(const char* message) {
 			if(this != &other) {											\
 				VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)								\
 			}																\
+			return *this;													\
 		}
 
 #define VK_MOVE_ASSIGN3(cName, p0, p1, p2)									\
@@ -224,6 +226,7 @@ inline void debug_output(const char* message) {
 				VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)								\
 				VK_MOVE_PTR(p2)												\
 			}																\
+			return *this;													\
 		}
 
 #define VK_MOVE_ASSIGN4(cName, p0, p1, p2, p3)								\
@@ -232,6 +235,7 @@ inline void debug_output(const char* message) {
 				VK_MOVE_PTR(p0) VK_MOVE_PTR(p1)								\
 				VK_MOVE_PTR(p2) VK_MOVE_PTR(p3)								\
 			}																\
+			return *this;													\
 		}
 
 #define VK_MOVE_ASSIGN5(cName, p0, p1, p2, p3, p4)							\
@@ -241,6 +245,7 @@ inline void debug_output(const char* message) {
 				VK_MOVE_PTR(p2) VK_MOVE_PTR(p3)								\
 				VK_MOVE_PTR(p4)												\
 			}																\
+			return *this;													\
 		}
 
 // mixed

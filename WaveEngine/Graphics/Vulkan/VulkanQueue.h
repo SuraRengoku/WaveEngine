@@ -3,14 +3,18 @@
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
+struct frameContext;
+
 class vulkanQueue {
 public:
     vulkanQueue() = default;
     void initialize(VkDevice device, u32 familyIndex, u32 queueIndex = 0);
 
     VkResult submit(const VkSubmitInfo* submitInfo, VkFence fence = VK_NULL_HANDLE) const;
+    VkResult submit(const frameContext& frameCtx, const VkPipelineStageFlags* waitStages, const void* next = nullptr) const;
 
     VkResult present(const VkPresentInfoKHR* presentInfo) const;
+    VkResult present(const frameContext& frameCtx, const VkSwapchainKHR& swapchain, const u32& imageIdx, VkResult* results, const void* next = nullptr) const;
 
     VkResult waitIdle() const;
 

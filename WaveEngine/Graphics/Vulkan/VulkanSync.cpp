@@ -1,13 +1,18 @@
 ﻿#include "VulkanSync.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
-VkResult vulkanFence::wait() {
+VkResult vulkanFence::wait() const{
     return wait(UINT64_MAX);
 }
 
-VkResult vulkanFence::wait(u64 timeout) {
-    if (VkResult result = vkWaitForFences(_device, 1, &_fence, false, timeout)) {
+VkResult vulkanFence::wait(u64 timeout) const {
+    return wait(VK_FALSE, timeout);
+}
+
+VkResult vulkanFence::wait(VkBool32 waitAll, u64 timeout) const {
+    if (VkResult result = vkWaitForFences(_device, 1, &_fence, waitAll, timeout)) {
         debug_error("::VULKAN:ERROR [ fence ] Failed to wait for the fence\n");
         return result;
     }
@@ -49,6 +54,13 @@ VkResult vulkanFence::create(const deviceContext& dCtx, VkFenceCreateFlags flags
     return VK_SUCCESS;
 }
 
+void vulkanFence::destroy() noexcept {
+    if (_fence != VK_NULL_HANDLE) {
+        VK_DESTROY_PTR_BY(vkDestroyFence, _device, _fence);
+        _device = VK_NULL_HANDLE;
+    }
+}
+
 // TODO maybe not useful
 VkResult vulkanSemaphore::wait(VkSemaphoreWaitInfo& waitInfo) const {
     waitInfo.pSemaphores = &_semaphore;
@@ -73,6 +85,13 @@ VkResult vulkanSemaphore::create(const deviceContext& dCtx, VkSemaphoreCreateFla
         return result;
     }
     return VK_SUCCESS;
+}
+
+void vulkanSemaphore::destroy() noexcept {
+    if (_semaphore != VK_NULL_HANDLE) {
+        VK_DESTROY_PTR_BY(vkDestroySemaphore, _device, _semaphore);
+        _device = VK_NULL_HANDLE;
+    }
 }
 
 void vulkanEvent::cmdSet(VkCommandBuffer commandBuffer, VkPipelineStageFlags stageMask) const {

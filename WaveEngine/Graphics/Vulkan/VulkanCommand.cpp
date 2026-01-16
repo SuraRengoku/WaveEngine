@@ -1,4 +1,5 @@
 ﻿#include "VulkanCommand.h"
+#include "VulkanContext.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -81,6 +82,11 @@ void vulkanCommandPool::freeBuffers(UTL::vector<vulkanCommandBuffer>& buffers) c
     memset(buffers.data(), 0, buffers.size() * sizeof(vulkanCommandBuffer));
 }
 
+void vulkanCommandPool::release() {
+    assert(_pool != VK_NULL_HANDLE);
+    VK_DESTROY_PTR_BY(vkDestroyCommandPool, _device, _pool);
+}
+
 ////////////////////////////////////////////// VULKAN COMMAND BUFFER /////////////////////////////////////////////
 
 VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags,
@@ -106,6 +112,10 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags) const 
         return result;
     }
     return VK_SUCCESS;
+}
+
+void vulkanCommandBuffer::reset() const {
+    vkResetCommandBuffer(_commandBuffer, 0);
 }
 
 VkResult vulkanCommandBuffer::end() const {
