@@ -50,7 +50,7 @@ WaveEngine/
 · Visual Studio 2022  
 · C++17 or later  
 · Microsoft Graphics Tools / RenderDoc  
-· Direct 12，Vulkan (D11 / OpenGL will be supported later!)
+· DirectX 12，Vulkan (D11 / OpenGL will be supported later!)
 
 ## Author
 waiting to be revealed 😜
