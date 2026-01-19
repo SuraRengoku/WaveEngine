@@ -166,6 +166,7 @@ private:
 
 public:
     vulkanImageMemory() = default;
+
     DISABLE_COPY(vulkanImageMemory);
 
     vulkanImageMemory(vulkanImageMemory&& other) noexcept

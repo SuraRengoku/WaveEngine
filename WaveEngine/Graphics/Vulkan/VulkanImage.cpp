@@ -92,5 +92,11 @@ bool vulkanImageView::create(const deviceContext& dCtx, VkImage image, VkFormat 
     return create(dCtx, createInfo);
 }
 
+void vulkanImageView::destroy() noexcept {
+	if (_image_view != VK_NULL_HANDLE) {
+        VK_DESTROY_PTR_BY(vkDestroyImageView, _device, _image_view);
+        _device = VK_NULL_HANDLE;
+	}
+}
 
 }

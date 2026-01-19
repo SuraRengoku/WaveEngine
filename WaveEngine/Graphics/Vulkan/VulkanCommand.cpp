@@ -1,5 +1,6 @@
 ﻿#include "VulkanCommand.h"
 #include "VulkanContext.h"
+#include "VulkanPipeline.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -89,7 +90,7 @@ void vulkanCommandPool::release() {
 
 ////////////////////////////////////////////// VULKAN COMMAND BUFFER /////////////////////////////////////////////
 
-VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags,
+VkResult vulkanCommandBuffer::beginCmd(VkCommandBufferUsageFlags usageFlags,
                                     const VkCommandBufferInheritanceInfo& inheritanceInfo) const {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -102,7 +103,7 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags,
     return VK_SUCCESS;
 }
 
-VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags) const {
+VkResult vulkanCommandBuffer::beginCmd(VkCommandBufferUsageFlags usageFlags) const {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = usageFlags;
@@ -114,15 +115,102 @@ VkResult vulkanCommandBuffer::begin(VkCommandBufferUsageFlags usageFlags) const 
     return VK_SUCCESS;
 }
 
-void vulkanCommandBuffer::reset() const {
+void vulkanCommandBuffer::resetCmd() const {
     vkResetCommandBuffer(_commandBuffer, 0);
 }
 
-VkResult vulkanCommandBuffer::end() const {
+VkResult vulkanCommandBuffer::endCmd() const {
     if (VkResult result = vkEndCommandBuffer(_commandBuffer)) {
         debug_error("::VULKAN:ERROR Failed to end a command buffer\n");
         return result;
     }
     return VK_SUCCESS;
 }
+
+////////////////////////////////////////////// VULKAN RENDER ENCODER ///////////////////////////////////////////
+
+vulkanRenderEncoder::vulkanRenderEncoder(const vulkanCommandBuffer& cmd, VkRenderPass renderPass,
+    VkFramebuffer framebuffer) : _commandBuffer(cmd.handle()), _renderPass(renderPass), _framebuffer(framebuffer) {
+    assert(_commandBuffer != VK_NULL_HANDLE);
+    assert(_renderPass != VK_NULL_HANDLE);
+    assert(_framebuffer != VK_NULL_HANDLE);
+}
+
+void vulkanRenderEncoder::beginRender(const VkRect2D& renderArea, const VkClearValue* clearValues, u32 clearCount, 
+    VkSubpassContents contents) {
+    assert(!_active);
+
+    VkRenderPassBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    beginInfo.renderPass = _renderPass;
+    beginInfo.framebuffer = _framebuffer;
+    beginInfo.renderArea = renderArea;
+    beginInfo.clearValueCount = clearCount;
+    beginInfo.pClearValues = clearValues;
+
+    vkCmdBeginRenderPass(_commandBuffer, &beginInfo, contents);
+    _active = true;
+}
+
+void vulkanRenderEncoder::nextSubpass(VkSubpassContents contents) {
+    assert(_active);
+    vkCmdNextSubpass(_commandBuffer, contents);
+}
+
+void vulkanRenderEncoder::endRender() {
+    assert(_active);
+    vkCmdEndRenderPass(_commandBuffer);
+    _active = false;
+}
+
+void vulkanRenderEncoder::setViewport(const VkViewport& viewport) {
+    assert(_active);
+    vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
+}
+
+void vulkanRenderEncoder::setScissor(const VkRect2D& scissor) {
+    assert(_active);
+    vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
+}
+
+void vulkanRenderEncoder::bindPipeline(const vulkanPipeline& pipeline) {
+    assert(_active);
+    vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline());
+}
+
+void vulkanRenderEncoder::bindDescriptorSets(VkPipelineBindPoint bindPoint, VkPipelineLayout layout, u32 firstSet,
+    const VkDescriptorSet* sets, u32 setCount, const u32* dynamicOffsets, u32 dynamicOffsetCount) {
+    assert(_active);
+    vkCmdBindDescriptorSets(_commandBuffer, bindPoint, layout, firstSet, setCount, sets, dynamicOffsetCount, dynamicOffsets);
+}
+
+void vulkanRenderEncoder::bindVertexBuffers(u32 firstBinding, u32 bindingCount, const VkBuffer* buffers,
+    const VkDeviceSize* offsets) {
+    assert(_active);
+    vkCmdBindVertexBuffers(_commandBuffer, firstBinding, bindingCount, buffers, offsets);
+}
+
+void vulkanRenderEncoder::bindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) {
+    assert(_active);
+    vkCmdBindIndexBuffer(_commandBuffer, buffer, offset, indexType);
+}
+
+void vulkanRenderEncoder::draw(u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance) {
+    assert(_active);
+    vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+void vulkanRenderEncoder::drawIndexed(u32 indexCount, u32 instanceCount, u32 firstIndex, int32_t vertexOffset,
+    u32 firstInstance) {
+    assert(_active);
+    vkCmdDrawIndexed(_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void vulkanRenderEncoder::reset() {
+    assert(!_active && "Cannot reset active render encoder");
+    _commandBuffer = VK_NULL_HANDLE;
+    _renderPass = VK_NULL_HANDLE;
+    _framebuffer = VK_NULL_HANDLE;
+}
+
 }

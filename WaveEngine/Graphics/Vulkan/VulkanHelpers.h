@@ -85,4 +85,8 @@ VkPhysicalDeviceProperties2 findPhysicalDeviceProperties(const VkPhysicalDevice&
 
 VkPhysicalDeviceMemoryProperties2 findPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physical_device);
 
+VkFormat findDepthFormat(const VkPhysicalDevice& physical_device);
+
+VkFormat findSupportedFormat(const VkPhysicalDevice& physical_device, const UTL::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+
 }

@@ -4,6 +4,8 @@
 #include <map>
 #include "VulkanQueue.h"
 #include "VulkanContext.h"
+#include "VulkanRenderPass.h"
+
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 

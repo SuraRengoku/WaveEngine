@@ -229,4 +229,5 @@ VkResult vulkanImageMemory::create(VkDevice device, VkPhysicalDevice physicalDev
 
     return VK_SUCCESS;
 }
+
 } // namespace WAVEENGINE::GRAPHICS::VULKAN

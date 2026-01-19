@@ -20,10 +20,25 @@ const UTL::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-/**
+/*
  * Instance-level context
- * - Valid from vkCreateInstance to vkDestroyInstance
- * - Used by WSI / Surface / Debug utilities
+ *
+ * Lifetime: Valid from vkCreateInstance to vkDestroyInstance
+ *
+ * Responsibilities:
+ * - Manages the global Vulkan instance handle
+ * - Provides allocation callbacks for instance-level resources
+ *
+ * Usage:
+ * - Window Surface Integration (WSI)
+ * - Physical device enumeration
+ * - Debug utilities and validation layers
+ * - Extension querying
+ *
+ * Notes:
+ * - This context is shared across all surfaces and devices
+ * - Should be created first and destroyed last in the Vulkan lifecycle
+ * - Thread-safe as long as the instance handle is not modified concurrently
  */
 struct instanceContext {
     VkInstance                          _instance{ VK_NULL_HANDLE };
@@ -32,7 +47,23 @@ struct instanceContext {
 
 /*
  * Physical device / adapter information
- * - Immutable after selection
+ *
+ * Lifetime: Immutable after selection via vkEnumeratePhysicalDevices
+ *
+ * Responsibilities:
+ * - Stores the selected physical device (GPU) handle
+ * - Caches device properties, features, and memory characteristics
+ *
+ * Usage:
+ * - Query GPU capabilities before logical device creation
+ * - Determine supported formats, sample counts, and limits
+ * - Memory type selection for buffer/image allocation
+ * - Feature validation (e.g., anisotropic filtering, geometry shaders)
+ *
+ * Notes:
+ * - Read-only after initialization (no modification allowed)
+ * - Properties are queried once and cached for performance
+ * - Supports both Vulkan 1.0 and 1.1+ property query methods
  */
 struct adapterContext {
     VkPhysicalDevice                    _physicalDevice{ VK_NULL_HANDLE };
@@ -49,8 +80,25 @@ struct adapterContext {
 
 /*
  * Logical device context
- * - Valid from vkCreateDevice to VkDestroyDevice
- * - Used by almost all GPU resource modules
+ *
+ * Lifetime: Valid from vkCreateDevice to vkDestroyDevice
+ *
+ * Responsibilities:
+ * - Manages the logical device handle (primary interface to GPU)
+ * - Provides graphics and present queue handles
+ * - Supplies allocation callbacks for device-level resources
+ *
+ * Usage:
+ * - Creation of all GPU resources (buffers, images, pipelines, etc.)
+ * - Command buffer submission via queue handles
+ * - Synchronization primitive management
+ * - Memory allocation operations
+ *
+ * Notes:
+ * - The logical device is created from a selected physical device
+ * - Graphics and present queues may be the same or different families
+ * - All resources created from this device must be destroyed before device shutdown
+ * - Queue operations are internally synchronized via mutex in vulkanQueue
  */
 struct deviceContext {
     VkDevice                            _device{ VK_NULL_HANDLE };
@@ -60,31 +108,62 @@ struct deviceContext {
 };
 
 /*
-    Frame-level Vulkan execution context.
-
-    This structure represents per-frame, CPU–GPU synchronized execution state.
-    It is valid only within the lifetime of a single frame-in-flight and must
-    not be cached or accessed outside the owning frame loop.
-
-    Responsibilities:
-    - Identify the current frame-in-flight via frame_index
-    - Provide the command buffer used for recording GPU commands this frame
-    - Provide the fence used to synchronize CPU submission and GPU completion
-
-    Notes:
-    - frame_index refers to the frame-in-flight index, NOT swapchain image index
-    - The command buffer must be in the recording state when handed to render code
-    - The fence must be signaled when GPU execution of this frame has completed
-
-    This context does not own any Vulkan resources.
-    Resource creation and destruction are managed by higher-level systems.
+ * Frame-level Vulkan execution context
+ *
+ * Lifetime: Valid within a single frame-in-flight (persistent across multiple render passes)
+ *
+ * Responsibilities:
+ * - Track the current frame-in-flight index (NOT swapchain image index)
+ * - Provide command buffer for recording GPU commands
+ * - Manage CPU-GPU synchronization via fence and semaphores
+ * - Cache render encoders per swapchain image to avoid reconstruction overhead
+ *
+ * Usage:
+ * - Used in render loop to record and submit frame commands
+ * - Frame index cycles through [0, frame_buffer_count) across frames
+ * - Command buffer must be reset and begun before use each frame
+ * - Fence ensures GPU completes work before CPU reuses resources
+ * - Semaphores coordinate image acquisition and presentation
+ *
+ * Synchronization Flow:
+ * 1. Wait on fence (CPU waits for GPU to finish previous frame)
+ * 2. Acquire swapchain image (signals image_available_semaphore)
+ * 3. Record and submit commands (waits on image_available, signals render_finished)
+ * 4. Present image (waits on render_finished_semaphore)
+ *
+ * Render Encoder Caching:
+ * - render_encoders[image_index] caches encoder for each swapchain image
+ * - Avoids redundant construction when framebuffer/renderPass don't change
+ * - Typical swapchain has 2-3 images, so array size is frame_buffer_count
+ * - First access initializes encoder, subsequent accesses reuse it
+ *
+ * Notes:
+ * - frame_index refers to frame-in-flight (0 to frame_buffer_count-1)
+ * - Swapchain image index is obtained via vkAcquireNextImageKHR (may differ from frame_index)
+ * - This context does NOT own Vulkan resources (managed by higher-level systems)
+ * - Command buffer must be in recording state when handed to render code
+ * - Fence must be signaled when GPU execution completes
+ * - Encoder cache optimizes common case where renderPass/framebuffer remain stable
+ *
+ * Memory Layout Considerations:
+ * - Total size: ~60 bytes (base) + frame_buffer_count * sizeof(optional<encoder>)
+ * - With 3 cached encoders: ~160 bytes per frame context
+ * - Fits comfortably in 3 cache lines (64 bytes each)
+ * - Sequential access pattern ensures good cache performance
  */
+using swapchainEncoder = std::array<std::optional<vulkanRenderEncoder>, frame_buffer_count>;
+
 struct frameContext {
-	u32								frame_index{ u32_invalid_id };
-	vulkanCommandBuffer				graphics_cmd_buffer;
-	vulkanFence						fence;
-	vulkanSemaphore					image_available_semaphore;
-	vulkanSemaphore					render_finished_semaphore;
+	u32								    frame_index{ u32_invalid_id };
+    vulkanCommandBuffer                 graphics_cmd_buffer;
+
+	vulkanFence						    fence;
+	vulkanSemaphore					    image_available_semaphore;
+	vulkanSemaphore					    render_finished_semaphore;
+    
+    // Cache render encoders per swapchain image to avoid per-frame reconstruction
+	// Note: vulkanRenderEncoder internally stores VkCommandBuffer as a handle reference
+    swapchainEncoder                    render_encoders;
 };
 
 /*

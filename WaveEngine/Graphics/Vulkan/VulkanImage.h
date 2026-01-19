@@ -75,9 +75,7 @@ public:
     VK_MOVE_ASSIGN2(vulkanImageView, _image_view, _device);
 
     ~vulkanImageView() {
-        VK_DESTROY_PTR_BY(vkDestroyImageView, _device, _image_view);
-        assert(_image_view == VK_NULL_HANDLE);
-        _device = VK_NULL_HANDLE;
+        destroy();
     }
 
     [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image_view);
@@ -92,6 +90,8 @@ public:
     bool create(const deviceContext& dCtx, VkImage image, VkFormat format,
                     VkImageViewType type, const VkComponentMapping& components, const VkImageSubresourceRange& range,
                     const VkImageViewCreateFlags flags = 0 , const void* next = nullptr);
+
+    void destroy() noexcept;
 
     bool isValid() const noexcept {
         return _image_view != VK_NULL_HANDLE;

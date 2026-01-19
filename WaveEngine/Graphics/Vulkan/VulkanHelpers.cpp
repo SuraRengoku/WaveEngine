@@ -138,5 +138,25 @@ VkPhysicalDeviceMemoryProperties2 findPhysicalDeviceMemoryProperties(const VkPhy
     return memoryProperties;
 }
 
+VkFormat findDepthFormat(const VkPhysicalDevice& physical_device) {
+    return findSupportedFormat(physical_device, { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT },
+        VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+VkFormat findSupportedFormat(const VkPhysicalDevice& physical_device, const UTL::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+	for (VkFormat format : candidates) {
+        VkFormatProperties formatProperties;
+        vkGetPhysicalDeviceFormatProperties(physical_device, format, &formatProperties);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (formatProperties.linearTilingFeatures & features) == features) {
+            return format;
+        } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (formatProperties.optimalTilingFeatures & features) == features) {
+            return format;
+        }
+	}
+    debug_error("::VULKAN:ERROR Failed to find supported depth format\n");
+    return VK_FORMAT_D32_SFLOAT; // fallback
+}
+
 }
 

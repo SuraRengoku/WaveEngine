@@ -4,6 +4,7 @@
 #include "VulkanShader.h"
 #include "VulkanCommand.h"
 #include "VulkanSync.h"
+#include "VulkanFramebuffer.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::CORE {
 
@@ -37,14 +38,14 @@ vulkanCommandBuffer begin_single_time_commands(vulkanCommandPool& cmdPool) {
 	cmdBuffers.emplace_back();
 
 	cmdPool.allocateBuffers(cmdBuffers);
-	if (VkResult result = cmdBuffers[0].begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)) {
+	if (VkResult result = cmdBuffers[0].beginCmd(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)) {
 		debug_error("::VULKAN:ERROR Failed to begin command");
 	}
 	return std::move(cmdBuffers[0]);
 }
 
 void end_single_time_commands(vulkanCommandPool& cmdPool, vulkanCommandBuffer& cmdBuffer) {
-	if (VkResult result = cmdBuffer.end()) {
+	if (VkResult result = cmdBuffer.endCmd()) {
 		debug_error("::VULKAN:ERROR Failed to end command");
 	}
 
@@ -62,6 +63,22 @@ void end_single_time_commands(vulkanCommandPool& cmdPool, vulkanCommandBuffer& c
 }
 
 frameContext						frames_data[frame_buffer_count];
+
+struct {
+	vulkanRenderPass	preDepth;
+	vulkanRenderPass	forward;
+	vulkanRenderPass	postProcess;
+} render_passes;
+
+struct {
+	vulkanPipeline		preDepth;
+
+	vulkanPipeline		forwardOpaque;
+	vulkanPipeline		forwardTransparent;
+	vulkanPipeline		forwardSkybox;
+
+	vulkanPipeline		postProcess;
+} pipelines;
 
 // TODO maybe we can move this to specific pass file
 UTL::vector<SHADERS::vulkanShader>	shaders{ SHADERS::engineShader::count };
@@ -167,6 +184,10 @@ void shutdown() {
 
 	shaders.clear();
 
+	render_passes.preDepth.destroy();
+	render_passes.forward.destroy();
+	render_passes.postProcess.destroy();
+
 	per_draw_pool.release();
 	for (auto& pool : per_frame_pool) {
 		pool.release();
@@ -213,6 +234,8 @@ surface create_surface(PLATFORM::window window) {
 	swapchain_id sc_id { swapchains.add(vk_ctx.physical_device(), vk_ctx.device(), surfaces[id].surface(), window)};
 	swapchains[sc_id].create();
 
+	assert(id == sc_id);
+
 	// validate Present Support
 	VKX::QueueFamilyIndices indices = VKX::findQueueFamilies(vk_ctx.physical_device(), surfaces[id].surface());
 #if _DEBUG
@@ -229,19 +252,42 @@ surface create_surface(PLATFORM::window window) {
 		debug_output("::VULKAN:WARNING Using separate present queue\n");
 #endif
 	}
+
+	if (!render_passes.preDepth.isValid()) {
+		VkFormat depth_format = VKX::findDepthFormat(vk_ctx.physical_device());
+		VKCall(render_passes.preDepth.createShadow(vk_ctx.device_context(), depth_format),
+			"::VULKAN:ERROR Failed to create pre-depth render pass\n");
+	}
+
+	if (!render_passes.forward.isValid()) {
+		VkFormat color_format = swapchains[sc_id].format();
+		VkFormat depth_format = VKX::findDepthFormat(vk_ctx.physical_device());
+		VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+		VKCall(render_passes.forward.createForward(vk_ctx.device_context(), color_format, depth_format, samples, false),
+			"::VULKAN:ERROR Failed to create forward render pass\n");
+	}
+
+	swapchains[sc_id].createFramebuffers(render_passes.forward, true);
+
+	if (!render_passes.postProcess.isValid()) {
+		VkFormat swapchain_format = swapchains[sc_id].format();
+		VKCall(render_passes.postProcess.createPostProcess(vk_ctx.device_context(), swapchain_format, swapchain_format, false),
+			"::VULKAN:ERROR Failed to create post-process render pass\n");
+	}
+
 	return surface{id};
 }
 
 void remove_surface(surface_id id) {
 	// waiting GPU
-	swapchains[id].release(); // normally surface and swapchain share a single id
+	swapchains[id].release(); // normally surface and swap chain share a single id
 	swapchains.remove(id);
 	surfaces[id].destroy(vk_ctx.instance_context());
 	surfaces.remove(id);
 }
 
 void resize_surface(surface_id id, u32 width, u32 height) {
-	
+	// TODO
 }
 
 u32 surface_width(surface_id id) {
@@ -261,76 +307,78 @@ void render_surface(surface_id id) {
 	// wait for completion of current frame
 	frame_data.fence.wait(VK_TRUE, UINT64_MAX);
 
-	// acquire swapchain image
+	// acquire swap chain image
 	u32 image_index;
 	vkAcquireNextImageKHR(vk_ctx.device(), swapchains[id].swapchain(), UINT64_MAX, frame_data.image_available_semaphore, VK_NULL_HANDLE, &image_index);
 
 	frame_data.fence.reset();
 
 	// reset and begin recording
-	frame_data.graphics_cmd_buffer.reset();
-	frame_data.graphics_cmd_buffer.begin();
+	frame_data.graphics_cmd_buffer.resetCmd();
+	frame_data.graphics_cmd_buffer.beginCmd();
 
-	// ✅ 获取当前 swapchain image
-    VkImage swapchain_image = swapchains[id].images()[image_index];
+	// ================ use cached encoder ===================
+	assert(image_index < frame_buffer_count && "Swap chain image index out of range");
 
-    // ✅ 布局转换: UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
-    VkImageMemoryBarrier barrier_to_color{};
-    barrier_to_color.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier_to_color.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier_to_color.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    barrier_to_color.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_color.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_color.image = swapchain_image;
-    barrier_to_color.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier_to_color.subresourceRange.baseMipLevel = 0;
-    barrier_to_color.subresourceRange.levelCount = 1;
-    barrier_to_color.subresourceRange.baseArrayLayer = 0;
-    barrier_to_color.subresourceRange.layerCount = 1;
-    barrier_to_color.srcAccessMask = 0;
-    barrier_to_color.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+//	const vulkanFramebuffer& fb_wrapper = swapchains[id].framebuffer(image_index);
+//	VkFramebuffer current_framebuffer = fb_wrapper.handle();
+//
+//#ifdef _DEBUG
+//	static VkFramebuffer last_framebuffers[frame_buffer_count] = {};
+//	if (last_framebuffers[image_index] != current_framebuffer) {
+//		debug_output("::VULKAN:WARNING Framebuffer for image %u changed: %p -> %p\n",
+//			image_index, (void*)last_framebuffers[image_index], (void*)current_framebuffer);
+//		last_framebuffers[image_index] = current_framebuffer;
+//	}
+//#endif
+//
+//	auto& encoder_opt = frame_data.render_encoders[image_index];
+//
+//	if (!encoder_opt.has_value()
+//		|| encoder_opt->needsReinit(render_passes.forward, current_framebuffer)) {
+//#ifdef _DEBUG
+//		debug_output("::VULKAN:INFO Reinitialize encoder for swapchain image %u, framebuffer %p\n",
+//			image_index, (void*)current_framebuffer);
+//#endif
+//		encoder_opt.emplace(
+//			frame_data.graphics_cmd_buffer,
+//			render_passes.forward,
+//			current_framebuffer);
+//	}
+//
+//	auto& render_encoder = encoder_opt.value();
+	auto& render_encoder = frame_data.render_encoders[image_index].value();
+	// =======================================================
 
-    vkCmdPipelineBarrier(
-        frame_data.graphics_cmd_buffer,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier_to_color
-    );
+	VkRect2D render_area{};
+	render_area.offset = { 0, 0 };
+	render_area.extent = swapchains[id].extent();
+	
+	UTL::vector<VkClearValue> clear_values(2);
+	clear_values[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };  
+	clear_values[1].depthStencil = { 1.0f, 0 };
 
-    // TODO: 在这里执行实际渲染(render pass)
+	render_encoder.beginRender(render_area, clear_values.data(), clear_values.size());
 
-    // ✅ 布局转换: COLOR_ATTACHMENT_OPTIMAL -> PRESENT_SRC_KHR
-    VkImageMemoryBarrier barrier_to_present{};
-    barrier_to_present.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier_to_present.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    barrier_to_present.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    barrier_to_present.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_present.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_present.image = swapchain_image;
-    barrier_to_present.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier_to_present.subresourceRange.baseMipLevel = 0;
-    barrier_to_present.subresourceRange.levelCount = 1;
-    barrier_to_present.subresourceRange.baseArrayLayer = 0;
-    barrier_to_present.subresourceRange.layerCount = 1;
-    barrier_to_present.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    barrier_to_present.dstAccessMask = 0;
+	VkViewport viewport{};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<float>(swapchains[id].extent().width);
+	viewport.height = static_cast<float>(swapchains[id].extent().height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	render_encoder.setViewport(viewport);
+	render_encoder.setScissor(render_area);
 
-    vkCmdPipelineBarrier(
-        frame_data.graphics_cmd_buffer,
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier_to_present
-    );
+	// TODO:
+	// render_encoder->bindPipeline(pipelines.forwardOpaque);
+	// render_encoder->bindDescriptorSets(...);
+	// render_encoder->draw(...);
 
-	// TODO: record rendering command
+	render_encoder.endRender();
+	//render_encoder.reset();
 
-	frame_data.graphics_cmd_buffer.end();
+	frame_data.graphics_cmd_buffer.endCmd();
 
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	vk_ctx.graphics_queue().submit(frame_data, waitStages);

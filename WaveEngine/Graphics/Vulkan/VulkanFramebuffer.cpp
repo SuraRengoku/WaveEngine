@@ -30,4 +30,10 @@ VkResult vulkanFramebuffer::create(const deviceContext& dCtx, VkRenderPass rende
     return create(dCtx, createInfo);
 }
 
+void vulkanFramebuffer::destroy() noexcept {
+	if (_framebuffer != VK_NULL_HANDLE) {
+        VK_DESTROY_PTR_BY(vkDestroyFramebuffer, _device, _framebuffer)
+        _device = VK_NULL_HANDLE;
+	}
+}
 }
