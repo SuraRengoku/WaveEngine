@@ -37,7 +37,87 @@ VkResult vulkanPipelineLayout::create(const deviceContext& dCtx, u32 setLayoutCo
     return create(dCtx, createInfo);
 }
 
-vulkanPipelineCreateInfoPack::vulkanPipelineCreateInfoPack(const vulkanPipelineCreateInfoPack& other) noexcept {
+void vulkanGraphicsPipelineCreateInfoPack::setDynamicViewport(u32 count) {
+    assert(count > 0 && "Viewport count must be > 0 for VK_DYNAMIC_STATE_VIEWPORT "
+        "Use setDynamicViewportWithCount() if you need variable count.");
+
+    removeDynamicState(VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT);
+    addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
+
+    _viewportStateCreateInfo.viewportCount = _viewportCount = count;
+    _viewportStateCreateInfo.pViewports = nullptr;
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::setStaticViewport() {
+    removeDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
+    removeDynamicState(VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT);
+
+    _viewportStateCreateInfo.viewportCount = _viewportCount = static_cast<u32>(_viewports.size());
+    _viewportStateCreateInfo.pViewports = _viewports.data();
+
+    assert(!_viewports.empty() && "Must add viewports before using static viewport state");
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::setDynamicScissor(u32 count) {
+    assert(count > 0 && "Scissor count must be > 0 for VK_DYNAMIC_STATE_SCISSOR "
+        "Use setDynamicScissorWithCount() if you need variable count.");
+
+    removeDynamicState(VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT);
+    addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+
+    _viewportStateCreateInfo.scissorCount = _scissorCount = count;
+    _viewportStateCreateInfo.pScissors = nullptr;
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::setStaticScissor() {
+    removeDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+    removeDynamicState(VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT);
+
+    _viewportStateCreateInfo.scissorCount = _scissorCount = static_cast<u32>(_scissors.size());
+    _viewportStateCreateInfo.pScissors = _scissors.data();
+
+    assert(!_scissors.empty() && "Must add scissors before using static scissor state");
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::setDynamicViewportScissor(u32 count) {
+    setDynamicViewport(count);
+    setDynamicScissor(count);
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::setStaticViewportScissor() {
+    setStaticViewport();
+    setStaticScissor();
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::setDynamicViewportWithCount() {
+    removeDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
+    addDynamicState(VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT);
+
+    _viewportStateCreateInfo.viewportCount = _viewportCount = 0;
+    _viewportStateCreateInfo.pViewports = nullptr;
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::setDynamicScissorWithCount() {
+    removeDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+    addDynamicState(VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT);
+
+    _viewportStateCreateInfo.scissorCount = _scissorCount = 0;
+    _viewportStateCreateInfo.pScissors = nullptr;
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::enableDynamicStencil(bool enable) {
+	if (enable) {
+        addDynamicState(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+        addDynamicState(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
+        addDynamicState(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+	} else {
+        removeDynamicState(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+        removeDynamicState(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
+        removeDynamicState(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+	}
+}
+
+vulkanGraphicsPipelineCreateInfoPack::vulkanGraphicsPipelineCreateInfoPack(const vulkanGraphicsPipelineCreateInfoPack& other) noexcept {
     _createInfo = other._createInfo;
     setCreateInfos();
 
@@ -55,24 +135,27 @@ vulkanPipelineCreateInfoPack::vulkanPipelineCreateInfoPack(const vulkanPipelineC
     _vertexInputBindings = other._vertexInputBindings;
     _vertexInputAttributes = other._vertexInputAttributes;
     _viewports = other._viewports;
+    _viewportCount = other._viewportCount;
     _scissors = other._scissors;
+    _scissorCount = other._scissorCount;
     _colorBlendAttachmentStates = other._colorBlendAttachmentStates;
     _dynamicStates = other._dynamicStates;
+
     updateAllArrayAddresses();
 }
 
-void vulkanPipelineCreateInfoPack::updateAllArrays() {
-    _createInfo.stageCount = _shaderStages.size();
-    _vertexInputStateCreateInfo.vertexBindingDescriptionCount = _vertexInputBindings.size();
-    _vertexInputStateCreateInfo.vertexAttributeDescriptionCount = _vertexInputAttributes.size();
-    _viewportStateCreateInfo.scissorCount = _scissors.size();
-    _viewportStateCreateInfo.viewportCount = _viewports.size();
-    _colorBlendStateCreateInfo.attachmentCount = _colorBlendAttachmentStates.size();
-    _dynamicStateCreateInfo.dynamicStateCount = _dynamicStates.size();
+void vulkanGraphicsPipelineCreateInfoPack::updateAllArrays() {
+    _createInfo.stageCount = static_cast<u32>(_shaderStages.size());
+    _vertexInputStateCreateInfo.vertexBindingDescriptionCount = static_cast<u32>(_vertexInputBindings.size());
+    _vertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<u32>(_vertexInputAttributes.size());
+    _viewportStateCreateInfo.scissorCount = _scissorCount;
+    _viewportStateCreateInfo.viewportCount = _viewportCount;
+    _colorBlendStateCreateInfo.attachmentCount = static_cast<u32>(_colorBlendAttachmentStates.size());
+    _dynamicStateCreateInfo.dynamicStateCount = static_cast<u32>(_dynamicStates.size());
     updateAllArrayAddresses();
 }
 
-void vulkanPipelineCreateInfoPack::setCreateInfos() {
+void vulkanGraphicsPipelineCreateInfoPack::setCreateInfos() {
     _createInfo.pVertexInputState = &_vertexInputStateCreateInfo;
     _createInfo.pInputAssemblyState = &_inputAssemblyStateCreateInfo;
     _createInfo.pTessellationState = &_tessellationStateCreateInfo;
@@ -84,18 +167,36 @@ void vulkanPipelineCreateInfoPack::setCreateInfos() {
     _createInfo.pDynamicState = &_dynamicStateCreateInfo;
 }
 
-void vulkanPipelineCreateInfoPack::updateAllArrayAddresses() {
-    _createInfo.pStages = _shaderStages.data();
-    _vertexInputStateCreateInfo.pVertexBindingDescriptions = _vertexInputBindings.data();
-    _vertexInputStateCreateInfo.pVertexAttributeDescriptions = _vertexInputAttributes.data();
-    _viewportStateCreateInfo.pScissors = _scissors.data();
-    _viewportStateCreateInfo.pViewports = _viewports.data();
-    _colorBlendStateCreateInfo.pAttachments = _colorBlendAttachmentStates.data();
-    _dynamicStateCreateInfo.pDynamicStates = _dynamicStates.data();
+void vulkanGraphicsPipelineCreateInfoPack::updateAllArrayAddresses() {
+    _createInfo.pStages = _shaderStages.empty() ? nullptr : _shaderStages.data();
+    _vertexInputStateCreateInfo.pVertexBindingDescriptions = _vertexInputBindings.empty() ? nullptr : _vertexInputBindings.data();
+    _vertexInputStateCreateInfo.pVertexAttributeDescriptions = _vertexInputAttributes.empty() ? nullptr : _vertexInputAttributes.data();
+   
+    // For dynamic state, these should be nullptr and are set in setDynamic* methods
+    // For static state, these are set in setStatic* methods
+	_viewportStateCreateInfo.pScissors = _scissors.empty() ? nullptr : _scissors.data();
+    _viewportStateCreateInfo.pViewports = _viewports.empty() ? nullptr : _viewports.data();
+
+    _colorBlendStateCreateInfo.pAttachments = _colorBlendAttachmentStates.empty() ? nullptr : _colorBlendAttachmentStates.data();
+    _dynamicStateCreateInfo.pDynamicStates = _dynamicStates.empty() ? nullptr : _dynamicStates.data();
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::addDynamicState(VkDynamicState state) {
+    auto it = std::find(_dynamicStates.begin(), _dynamicStates.end(), state);
+    if (it == _dynamicStates.end()) {
+        _dynamicStates.push_back(state);
+    }
+}
+
+void vulkanGraphicsPipelineCreateInfoPack::removeDynamicState(VkDynamicState state) {
+    auto it = std::find(_dynamicStates.begin(), _dynamicStates.end(), state);
+    if (it != _dynamicStates.end()) {
+        _dynamicStates.erase(it);
+    }
 }
 
 VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkGraphicsPipelineCreateInfo& createInfo) {
-    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a pipeline\n");
+    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a graphics pipeline\n");
     _device = dCtx._device;
 
     if (VkResult result = vkCreateGraphicsPipelines(_device, nullptr, 1, &createInfo, dCtx._allocator, &_pipeline)) {
@@ -106,7 +207,7 @@ VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkGraphicsPipel
 }
 
 VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkComputePipelineCreateInfo& createInfo) {
-    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a pipeline\n");
+    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a compute pipeline\n");
     _device = dCtx._device;
 
     if (VkResult result = vkCreateComputePipelines(_device, nullptr, 1, &createInfo, dCtx._allocator, &_pipeline)) {
@@ -117,14 +218,38 @@ VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkComputePipeli
 }
 
 VkResult vulkanPipeline::create(const deviceContext& dCtx, const VkRayTracingPipelineCreateInfoKHR& createInfo) {
-    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a pipeline\n");
+    assert(_pipeline == VK_NULL_HANDLE && "::VULKAN:ERROR Can not recreate a ray tracing pipeline\n");
     _device = dCtx._device;
 
-    // TODO currently not useful because of deferredOperation
-    if (VkResult result = vkCreateRayTracingPipelinesKHR(_device, nullptr, nullptr, 1, &createInfo, dCtx._allocator, &_pipeline)) {
+    if (vulkanContext::vkCreateRayTracingPipelinesKHR == nullptr) {
+        debug_error("::VULKAN:ERROR Ray tracing not supported - vkCreateRayTracingPipelinesKHR not available\n");
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+
+    // TODO currently not useful because of deferred Operation
+    if (VkResult result = vulkanContext::vkCreateRayTracingPipelinesKHR(
+        _device, 
+        VK_NULL_HANDLE, 
+        VK_NULL_HANDLE, 
+        1, 
+        &createInfo, 
+        dCtx._allocator, 
+        &_pipeline)) {
         debug_error("::VULKAN:ERROR Failed to create a ray tracing pipeline\n");
         return result;
     }
+
+#ifdef _DEBUG
+    debug_output("::VULKAN:INFO Ray tracing pipeline created\n");
+#endif
+
     return VK_SUCCESS;
+}
+
+void vulkanPipeline::destroy() noexcept {
+	if (_pipeline != VK_NULL_HANDLE) {
+        VK_DESTROY_PTR_BY(vkDestroyPipeline, _device, _pipeline)
+        _device = VK_NULL_HANDLE;
+	}
 }
 }

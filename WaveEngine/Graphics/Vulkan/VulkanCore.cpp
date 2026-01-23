@@ -80,6 +80,8 @@ struct {
 	vulkanPipeline		postProcess;
 } pipelines;
 
+// 
+
 // TODO maybe we can move this to specific pass file
 UTL::vector<SHADERS::vulkanShader>	shaders{ SHADERS::engineShader::count };
 
@@ -150,7 +152,7 @@ bool initialize() {
 		frames_data[i].frame_index = i;
 		UTL::vector<vulkanCommandBuffer> cmdBuffers;
 		cmdBuffers.emplace_back();
-		VKCall(graphics_command_pool[i].allocateBuffers(cmdBuffers), "::VULKAN:ERROR Failed to allocate command buffer for frame {} \n", i);
+		VKCall(graphics_command_pool[i].allocateBuffers(cmdBuffers), "::VULKAN:ERROR Failed to allocate command buffer for frame {}\n", i);
 
 		frames_data[i].graphics_cmd_buffer = std::move(cmdBuffers[0]);
 
@@ -161,6 +163,11 @@ bool initialize() {
 	}
 
 	VKbCall(SHADERS::loadEngineShaders(), "::VULKAN:ERROR Failed to load engine built-in shaders");
+
+	for (u32 i{0}; i < SHADERS::engineShader::count; ++i) {
+		VKCall(shaders[i].create(vk_ctx.device(), static_cast<SHADERS::engineShader::id>(i)),
+			"::VULKAN:ERROR Failed to shader module\n");
+	}
 
 	return true;
 }
@@ -183,6 +190,8 @@ void shutdown() {
 	transient_command_pool.release();
 
 	shaders.clear();
+
+	pipelines.forwardOpaque.destroy();
 
 	render_passes.preDepth.destroy();
 	render_passes.forward.destroy();
@@ -253,26 +262,119 @@ surface create_surface(PLATFORM::window window) {
 #endif
 	}
 
+	// ==================================== create RenderPass =======================================
+
+	// VkFormat default_color_format = VK_FORMAT_B8G8R8A8_UNORM;
+	VkFormat depth_format = VKX::findDepthFormat(vk_ctx.physical_device());
+
 	if (!render_passes.preDepth.isValid()) {
-		VkFormat depth_format = VKX::findDepthFormat(vk_ctx.physical_device());
 		VKCall(render_passes.preDepth.createShadow(vk_ctx.device_context(), depth_format),
 			"::VULKAN:ERROR Failed to create pre-depth render pass\n");
 	}
 
 	if (!render_passes.forward.isValid()) {
-		VkFormat color_format = swapchains[sc_id].format();
-		VkFormat depth_format = VKX::findDepthFormat(vk_ctx.physical_device());
 		VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
-		VKCall(render_passes.forward.createForward(vk_ctx.device_context(), color_format, depth_format, samples, false),
+		VKCall(render_passes.forward.createForward(vk_ctx.device_context(), swapchains[sc_id].format(), depth_format, samples, false),
 			"::VULKAN:ERROR Failed to create forward render pass\n");
 	}
 
 	swapchains[sc_id].createFramebuffers(render_passes.forward, true);
 
 	if (!render_passes.postProcess.isValid()) {
-		VkFormat swapchain_format = swapchains[sc_id].format();
-		VKCall(render_passes.postProcess.createPostProcess(vk_ctx.device_context(), swapchain_format, swapchain_format, false),
+		VKCall(render_passes.postProcess.createPostProcess(vk_ctx.device_context(), swapchains[sc_id].format(), swapchains[sc_id].format(), false),
 			"::VULKAN:ERROR Failed to create post-process render pass\n");
+	}
+
+	// ================================ create Graphics Pipeline ====================================
+
+	if (!pipelines.forwardOpaque.isValid()) {
+		vulkanGraphicsPipelineCreateInfoPack forwardOpaquePipelineInfo;
+
+		// Shader Stages
+		forwardOpaquePipelineInfo._shaderStages = {
+			// Vertex Shader
+			{
+				VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				nullptr,
+				0,
+				shaders[SHADERS::engineShader::fullscreen_triangle_vs].vkStage(),
+				shaders[SHADERS::engineShader::fullscreen_triangle_vs].handle(),
+				shaders[SHADERS::engineShader::fullscreen_triangle_vs].entryPoint(),
+				nullptr
+			},
+			// Fragment Shader
+			{
+				VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				nullptr,
+				0,
+				shaders[SHADERS::engineShader::fill_color_ps].vkStage(),
+				shaders[SHADERS::engineShader::fill_color_ps].handle(),
+				shaders[SHADERS::engineShader::fill_color_ps].entryPoint(),
+				nullptr
+			}
+
+		};
+
+		// Vertex Input
+
+		// Input Assembly
+		forwardOpaquePipelineInfo._inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		forwardOpaquePipelineInfo._inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+		// Rasterization
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.depthClampEnable = VK_FALSE;
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.lineWidth = 1.0f;
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;
+
+		// Multiple sample
+		forwardOpaquePipelineInfo._multisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;
+		forwardOpaquePipelineInfo._multisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		// Depth & Stencil
+		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
+		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
+		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
+		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
+
+		// Color Blend
+		VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+		colorBlendAttachment.colorWriteMask =
+			VK_COLOR_COMPONENT_R_BIT |
+			VK_COLOR_COMPONENT_G_BIT |
+			VK_COLOR_COMPONENT_B_BIT |
+			VK_COLOR_COMPONENT_A_BIT;
+		colorBlendAttachment.blendEnable = VK_FALSE; // opaque objects does not need blending
+
+		forwardOpaquePipelineInfo._colorBlendAttachmentStates = { colorBlendAttachment };
+		forwardOpaquePipelineInfo._colorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_COPY;
+		forwardOpaquePipelineInfo._colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
+
+		// Dynamic States
+		forwardOpaquePipelineInfo.setDynamicViewportScissor(1);
+
+		vulkanPipelineLayout pipelineLayout;
+		VKCall(pipelineLayout.create(vk_ctx.device_context(), 0, nullptr, 0, nullptr),
+			"::VULKAN:ERROR Failed to create pipeline layout\n");
+
+		// base information
+		forwardOpaquePipelineInfo._createInfo.layout = pipelineLayout.handle();
+		forwardOpaquePipelineInfo._createInfo.renderPass = render_passes.forward;
+		forwardOpaquePipelineInfo._createInfo.subpass = 0;
+
+		// update all pointers and counters
+		forwardOpaquePipelineInfo.updateAllArrays();
+
+		VKCall(pipelines.forwardOpaque.create(vk_ctx.device_context(), forwardOpaquePipelineInfo),
+			"::VULKAN:ERROR Failed to create forward opaque pipeline\n");
+
+#ifdef _DEBUG
+		debug_output("::VULKAN:INFO Forward opaque pipeline created\n");
+#endif
 	}
 
 	return surface{id};
@@ -317,38 +419,11 @@ void render_surface(surface_id id) {
 	frame_data.graphics_cmd_buffer.resetCmd();
 	frame_data.graphics_cmd_buffer.beginCmd();
 
-	// ================ use cached encoder ===================
+	frame_data.render_encoder = { frame_data.graphics_cmd_buffer, render_passes.forward, swapchains[id].framebuffer(image_index) };
+
 	assert(image_index < frame_buffer_count && "Swap chain image index out of range");
 
-//	const vulkanFramebuffer& fb_wrapper = swapchains[id].framebuffer(image_index);
-//	VkFramebuffer current_framebuffer = fb_wrapper.handle();
-//
-//#ifdef _DEBUG
-//	static VkFramebuffer last_framebuffers[frame_buffer_count] = {};
-//	if (last_framebuffers[image_index] != current_framebuffer) {
-//		debug_output("::VULKAN:WARNING Framebuffer for image %u changed: %p -> %p\n",
-//			image_index, (void*)last_framebuffers[image_index], (void*)current_framebuffer);
-//		last_framebuffers[image_index] = current_framebuffer;
-//	}
-//#endif
-//
-//	auto& encoder_opt = frame_data.render_encoders[image_index];
-//
-//	if (!encoder_opt.has_value()
-//		|| encoder_opt->needsReinit(render_passes.forward, current_framebuffer)) {
-//#ifdef _DEBUG
-//		debug_output("::VULKAN:INFO Reinitialize encoder for swapchain image %u, framebuffer %p\n",
-//			image_index, (void*)current_framebuffer);
-//#endif
-//		encoder_opt.emplace(
-//			frame_data.graphics_cmd_buffer,
-//			render_passes.forward,
-//			current_framebuffer);
-//	}
-//
-//	auto& render_encoder = encoder_opt.value();
-	auto& render_encoder = frame_data.render_encoders[image_index].value();
-	// =======================================================
+	auto& render_encoder = frame_data.render_encoder;
 
 	VkRect2D render_area{};
 	render_area.offset = { 0, 0 };
@@ -358,25 +433,26 @@ void render_surface(surface_id id) {
 	clear_values[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };  
 	clear_values[1].depthStencil = { 1.0f, 0 };
 
-	render_encoder.beginRender(render_area, clear_values.data(), clear_values.size());
 
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(swapchains[id].extent().width);
-	viewport.height = static_cast<float>(swapchains[id].extent().height);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	render_encoder.setViewport(viewport);
-	render_encoder.setScissor(render_area);
+	// forward - forwardOpaque 
+	{
+		render_encoder.beginRender(render_area, clear_values.data(), clear_values.size());
 
-	// TODO:
-	// render_encoder->bindPipeline(pipelines.forwardOpaque);
-	// render_encoder->bindDescriptorSets(...);
-	// render_encoder->draw(...);
+		render_encoder.setViewport(0, 0,
+			static_cast<float>(swapchains[id].extent().width),
+			static_cast<float>(swapchains[id].extent().height),
+			0.0f, 1.0f);
+		render_encoder.setScissor(render_area);
 
-	render_encoder.endRender();
-	//render_encoder.reset();
+		// TODO:
+		// render_encoder.bindPipeline(pipelines.forwardOpaque);
+		// render_encoder->bindDescriptorSets(...);
+		// render_encoder->draw(...);
+
+		render_encoder.endRender();
+		render_encoder.reset();
+	}
+
 
 	frame_data.graphics_cmd_buffer.endCmd();
 

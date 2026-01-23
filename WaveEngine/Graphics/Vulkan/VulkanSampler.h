@@ -26,15 +26,15 @@ public:
             borderColor, unnormalizedCoordinates, flags, next);
     }
 
-    VK_MOVE_CTOR2(vulkanSampler, _sampler, _device);
-    VK_MOVE_ASSIGN2(vulkanSampler, _sampler, _device);
+    VK_MOVE_CTOR2(vulkanSampler, _sampler, _device)
+    VK_MOVE_ASSIGN2(vulkanSampler, _sampler, _device)
 
     ~vulkanSampler() {
-        VK_DESTROY_PTR_BY(vkDestroySampler, _device, _sampler);
+        VK_DESTROY_PTR_BY(vkDestroySampler, _device, _sampler)
     }
 
-    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_sampler);
-    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_sampler);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_sampler)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_sampler)
 
     [[nodiscard]] VkSampler sampler() const {
         assert(_sampler != VK_NULL_HANDLE);

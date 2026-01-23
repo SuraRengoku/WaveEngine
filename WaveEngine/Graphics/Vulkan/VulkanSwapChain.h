@@ -30,7 +30,7 @@ public:
         assert(_window.handle());
     }
 
-    DISABLE_COPY_AND_MOVE(vulkanSwapChain);
+    DISABLE_COPY_AND_MOVE(vulkanSwapChain)
 
     ~vulkanSwapChain() { release(); }
 

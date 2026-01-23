@@ -129,6 +129,7 @@ VkResult vulkanCommandBuffer::endCmd() const {
 
 ////////////////////////////////////////////// VULKAN RENDER ENCODER ///////////////////////////////////////////
 
+
 vulkanRenderEncoder::vulkanRenderEncoder(const vulkanCommandBuffer& cmd, VkRenderPass renderPass,
     VkFramebuffer framebuffer) : _commandBuffer(cmd.handle()), _renderPass(renderPass), _framebuffer(framebuffer) {
     assert(_commandBuffer != VK_NULL_HANDLE);
@@ -136,8 +137,10 @@ vulkanRenderEncoder::vulkanRenderEncoder(const vulkanCommandBuffer& cmd, VkRende
     assert(_framebuffer != VK_NULL_HANDLE);
 }
 
+
+
 void vulkanRenderEncoder::beginRender(const VkRect2D& renderArea, const VkClearValue* clearValues, u32 clearCount, 
-    VkSubpassContents contents) {
+                                      VkSubpassContents contents) {
     assert(!_active);
 
     VkRenderPassBeginInfo beginInfo{};
@@ -166,6 +169,10 @@ void vulkanRenderEncoder::endRender() {
 void vulkanRenderEncoder::setViewport(const VkViewport& viewport) {
     assert(_active);
     vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
+}
+void vulkanRenderEncoder::setViewport(float x, float y, float width, float height, float maxDepth, float minDepth) {
+    VkViewport viewport{ x, y, width, height, minDepth, maxDepth };
+    setViewport(viewport);
 }
 
 void vulkanRenderEncoder::setScissor(const VkRect2D& scissor) {
@@ -211,6 +218,18 @@ void vulkanRenderEncoder::reset() {
     _commandBuffer = VK_NULL_HANDLE;
     _renderPass = VK_NULL_HANDLE;
     _framebuffer = VK_NULL_HANDLE;
+}
+
+bool vulkanRenderEncoder::needsReinit(VkRenderPass renderPass, VkFramebuffer framebuffer) const {
+#ifdef _DEBUG
+    bool rpChanged = _renderPass != renderPass;
+    bool fbChanged = _framebuffer != framebuffer;
+    if (rpChanged || fbChanged) {
+        debug_output("::VULKAN:INFO Encoder needs reinit - RenderPass changed: %d, Framebuffer changed: %d\n",
+            rpChanged, fbChanged);
+    }
+#endif
+    return _renderPass != renderPass || _framebuffer != framebuffer;
 }
 
 }

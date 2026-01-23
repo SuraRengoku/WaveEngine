@@ -18,7 +18,15 @@ const UTL::vector<const char*> validationLayers = {
 
 const UTL::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	// Ray Tracing extension will be added on initialization (if available)
 };
+
+#ifdef VK_KHR_ray_tracing_pipeline
+constexpr const char* VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME_STR = VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME;
+constexpr const char* VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME_STR = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
+constexpr const char* VK_KHR_RAY_QUERY_EXTENSION_NAME_STR = VK_KHR_RAY_QUERY_EXTENSION_NAME;
+constexpr const char* VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME_STR = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
+#endif
 
 /*
  * Instance-level context
@@ -160,10 +168,11 @@ struct frameContext {
 	vulkanFence						    fence;
 	vulkanSemaphore					    image_available_semaphore;
 	vulkanSemaphore					    render_finished_semaphore;
-    
-    // Cache render encoders per swapchain image to avoid per-frame reconstruction
+
+	vulkanRenderEncoder					render_encoder;
+	// Cache render encoders per swapchain image to avoid per-frame reconstruction
 	// Note: vulkanRenderEncoder internally stores VkCommandBuffer as a handle reference
-    swapchainEncoder                    render_encoders;
+    //swapchainEncoder                    render_encoders;
 };
 
 /*
@@ -207,6 +216,18 @@ public:
     VkResult pickPhysicalDevice();
     VkResult createLogicalDevice();
 
+	// ================================== Ray Tracing Feature ===================================
+
+	static PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
+	static PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
+	static PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
+
+	bool loadRayTracingFunctions();
+
+	bool isRayTracingSupported() const { return _rayTracingSupported; }
+
+	// ==========================================================================================
+
 	// utilities
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 												VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -239,6 +260,8 @@ private:
 
 	VkSampleCountFlagBits				_vkMSAASamples = VK_SAMPLE_COUNT_1_BIT;
 	static VkDebugUtilsMessengerEXT		_callback;
+
+	bool								_rayTracingSupported{ false };
 };
 
 }

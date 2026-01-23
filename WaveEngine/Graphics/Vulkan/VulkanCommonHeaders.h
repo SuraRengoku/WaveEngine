@@ -275,7 +275,7 @@ inline void debug_output(const char* message) {
 		}
 
 // mixed
-#define VK_MOVE_ASSIGN_CUSTOM(cName, ...)										\
+#define VK_MOVE_ASSIGN_CUSTOM(cName, ...)									\
 		cName& operator=(cName&& other) noexcept { __VA_ARGS__ }
 
 #include "VulkanHelpers.h"

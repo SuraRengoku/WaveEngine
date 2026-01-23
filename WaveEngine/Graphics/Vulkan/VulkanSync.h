@@ -14,21 +14,21 @@ private:
 public:
     vulkanFence() = default;
 
-    DISABLE_COPY(vulkanFence);
+    DISABLE_COPY(vulkanFence)
 
     vulkanFence(const deviceContext& dCtx, VkFenceCreateFlags flags = 0, const void* next = nullptr) {
         create(dCtx, flags, next);
     }
 
-    VK_MOVE_CTOR2(vulkanFence, _fence, _device);
-    VK_MOVE_ASSIGN2(vulkanFence, _fence, _device);
+    VK_MOVE_CTOR2(vulkanFence, _fence, _device)
+    VK_MOVE_ASSIGN2(vulkanFence, _fence, _device)
 
     ~vulkanFence() {
         destroy();
     }
 
-    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_fence);
-    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_fence);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_fence)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_fence)
 
     [[nodiscard]] constexpr VkFence fence() const {
         assert(_fence != VK_NULL_HANDLE);
@@ -59,21 +59,21 @@ private:
 public:
     vulkanSemaphore() = default;
 
-    DISABLE_COPY(vulkanSemaphore);
+    DISABLE_COPY(vulkanSemaphore)
 
     vulkanSemaphore(const deviceContext& dCtx, VkSemaphoreCreateFlags flags = 0, const void* next = nullptr) {
         create(dCtx, flags, next);
     }
 
-    VK_MOVE_CTOR2(vulkanSemaphore, _semaphore, _device);
-    VK_MOVE_ASSIGN2(vulkanSemaphore, _semaphore, _device);
+    VK_MOVE_CTOR2(vulkanSemaphore, _semaphore, _device)
+    VK_MOVE_ASSIGN2(vulkanSemaphore, _semaphore, _device)
 
     ~vulkanSemaphore() {
         destroy();
     }
 
-    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_semaphore);
-    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_semaphore);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_semaphore)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_semaphore)
 
     [[nodiscard]] constexpr VkSemaphore semaphore() const {
         assert(_semaphore != VK_NULL_HANDLE);
@@ -110,15 +110,15 @@ public:
         create(dCtx, flags, next);
     }
 
-    VK_MOVE_CTOR2(vulkanEvent, _event, _device);
-    VK_MOVE_ASSIGN2(vulkanEvent, _event, _device);
+    VK_MOVE_CTOR2(vulkanEvent, _event, _device)
+    VK_MOVE_ASSIGN2(vulkanEvent, _event, _device)
 
     ~vulkanEvent() {
-        VK_DESTROY_PTR_BY(vkDestroyEvent, _device, _event);
+        VK_DESTROY_PTR_BY(vkDestroyEvent, _device, _event)
     }
 
-    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_event);
-    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_event);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_event)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_event)
 
     [[nodiscard]] constexpr VkEvent event() const {
         assert(_event != VK_NULL_HANDLE);

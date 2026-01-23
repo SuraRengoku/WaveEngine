@@ -90,14 +90,14 @@ private:
 	void invalidate() noexcept {
 		_set = VK_NULL_HANDLE;
 #if _DEBUG
-		container = nullptr;
+		_container = nullptr;
 #endif
 	}
 
 	VkDescriptorSet				_set{ VK_NULL_HANDLE };
 	friend class vulkanDescriptorPool;
 #ifdef _DEBUG
-	vulkanDescriptorPool*		container{ nullptr };
+	vulkanDescriptorPool*		_container{ nullptr };
 #endif
 };
 
@@ -116,7 +116,7 @@ public:
 	explicit vulkanDescriptorPool(descriptorPoolPolicy policy,  const UTL::vector<VkDescriptorPoolSize>& poolSizes)
 		: _policy(policy), _pool_sizes(poolSizes) {}
 
-	DISABLE_COPY_AND_MOVE(vulkanDescriptorPool);
+	DISABLE_COPY_AND_MOVE(vulkanDescriptorPool)
 
 	~vulkanDescriptorPool() {
 		assert(_pool == VK_NULL_HANDLE);
@@ -126,18 +126,21 @@ public:
 	bool initialize(VkDevice device, u32 max_sets, VkDescriptorPoolCreateFlags flags = 0);
 	bool initialize(VkDevice device, u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_Sizes, VkDescriptorPoolCreateFlags flags = 0);
 
+	[[nodiscard]] vulkanDescriptorSetHandle allocate(vulkanDescriptorSetLayout layout);
+	[[nodiscard]] UTL::vector<vulkanDescriptorSetHandle> allocate(const UTL::vector<vulkanDescriptorSetLayout>& layouts);
+
 	// Calling this will invalidate all sets in the pool immediately
 	// before calling reset you have to make sure all sets in the pool will no longer be used by GPU
 	void reset();
 
+	// free single descriptor set (only works in DeferredFree policy)
 	void free(vulkanDescriptorSetHandle& descSet);
 
+	// totally release the pool
 	void release();
 	// after frame fence signaled
 	void process_deferred_free();
 
-	[[nodiscard]] vulkanDescriptorSetHandle allocate(vulkanDescriptorSetLayout layout);
-	[[nodiscard]] UTL::vector<vulkanDescriptorSetHandle> allocate(const UTL::vector<vulkanDescriptorSetLayout>& layouts);
 
 	[[nodiscard]] constexpr VkDescriptorPool pool() const { return _pool; }
 	[[nodiscard]] constexpr u32 capacity() const { return _capacity; }

@@ -91,9 +91,31 @@ void unloadEngineShaders() {
     shaders_blob.reset();
 }
 
-VkResult vulkanShader::create(VkShaderModuleCreateInfo& createInfo, engineShader::id shaderId) {
-    assert(_device != VK_NULL_HANDLE);
+VkShaderStageFlagBits vulkanShader::vkStage() const {
+	static const VkShaderStageFlagBits stages[] = {
+		VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM,             // undefined
+        VK_SHADER_STAGE_VERTEX_BIT,                     // vertex
+        VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,       // tessellationControl
+        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,    // tessellationEvaluation
+        VK_SHADER_STAGE_GEOMETRY_BIT,                   // geometry
+        VK_SHADER_STAGE_FRAGMENT_BIT,                   // fragment
+        VK_SHADER_STAGE_COMPUTE_BIT,                    // compute
+        VK_SHADER_STAGE_TASK_BIT_EXT,                   // task
+        VK_SHADER_STAGE_MESH_BIT_EXT,                   // mesh
+	};
+    return stages[_stage];
+}
+
+VkResult vulkanShader::create(VkDevice device, engineShader::id shaderId) {
+    assert(_shaderModule == VK_NULL_HANDLE);
+    _device = device;
+
     auto* spir_v = get_engine_shader(shaderId);
+
+    _stage = shader_files[shaderId].type;
+    _entryPoint = shader_files[shaderId].function;
+
+    VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = spir_v->size() * sizeof(u32);
     createInfo.pCode = spir_v->data();

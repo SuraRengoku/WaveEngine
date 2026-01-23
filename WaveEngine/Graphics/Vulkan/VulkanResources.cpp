@@ -99,7 +99,7 @@ vulkanDescriptorSetHandle vulkanDescriptorPool::allocate(vulkanDescriptorSetLayo
 	++_size;
 #if _DEBUG
 	auto handle = vulkanDescriptorSetHandle{ vkSet };
-	handle.container = this;
+	handle._container = this;
 	return handle;
 #else
 	return vulkanDescriptorSetHandle{ vkSet };
@@ -131,7 +131,7 @@ UTL::vector<vulkanDescriptorSetHandle> vulkanDescriptorPool::allocate(const UTL:
 	for (auto vkSet : vkSets) {
 #if _DEBUG
 		auto handle = vulkanDescriptorSetHandle{ vkSet };
-		handle.container = this;
+		handle._container = this;
 		result.emplace_back(std::move(handle));
 #else
 		result.emplace_back(vulkanDescriptorSetHandle{ vkSet });
@@ -168,7 +168,7 @@ void vulkanDescriptorPool::reset() {
 void vulkanDescriptorPool::free(vulkanDescriptorSetHandle& descSet) {
 	assert(descSet.is_valid());
 #if _DEBUG
-	assert(descSet.container == this);
+	assert(descSet._container == this);
 #endif
 
 	std::lock_guard lock{ _mutex };

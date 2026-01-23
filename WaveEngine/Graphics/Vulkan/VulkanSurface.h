@@ -21,9 +21,9 @@ public:
 	}
 
 #if USE_STL_VECTOR
-	DISABLE_COPY(vulkanSurface);
+	DISABLE_COPY(vulkanSurface)
 #else
-	DISABLE_COPY_AND_MOVE(vulkanSurface);
+	DISABLE_COPY_AND_MOVE(vulkanSurface)
 #endif
 
 	~vulkanSurface() {

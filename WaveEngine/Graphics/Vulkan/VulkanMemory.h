@@ -41,29 +41,29 @@ public:
     DISABLE_COPY(vulkanDeviceMemory);
 
     VK_MOVE_CTOR_CUSTOM(vulkanDeviceMemory,
-        VK_MOVE_PTR(_device);
-        VK_MOVE_PTR(_device_memory);
-        VK_MOVE_PTR(_mapped_ptr);
-        VK_MOVE_VALUE(_allocation_size);
-        VK_MOVE_VALUE(_memory_property_flags);
-        VK_MOVE_STRUCT(_physical_device_properties);
-        VK_MOVE_VALUE(_mapped_offset);
-        VK_MOVE_VALUE(_mapped_size);
-    );
+        VK_MOVE_PTR(_device)
+        VK_MOVE_PTR(_device_memory)
+        VK_MOVE_PTR(_mapped_ptr)
+        VK_MOVE_VALUE(_allocation_size)
+        VK_MOVE_VALUE(_memory_property_flags)
+        VK_MOVE_STRUCT(_physical_device_properties)
+        VK_MOVE_VALUE(_mapped_offset)
+        VK_MOVE_VALUE(_mapped_size)
+    )
 
     vulkanDeviceMemory& operator=(vulkanDeviceMemory&& other) noexcept {
         if (this != &other) {
             if (_device_memory != VK_NULL_HANDLE) {
-                VK_DESTROY_PTR_BY(vkFreeMemory, _device, _device_memory);
+                VK_DESTROY_PTR_BY(vkFreeMemory, _device, _device_memory)
             }
-            VK_MOVE_PTR(_device);
-            VK_MOVE_PTR(_device_memory);
-            VK_MOVE_VALUE(_allocation_size);
-            VK_MOVE_VALUE(_memory_property_flags);
+            VK_MOVE_PTR(_device)
+            VK_MOVE_PTR(_device_memory)
+            VK_MOVE_VALUE(_allocation_size)
+            VK_MOVE_VALUE(_memory_property_flags)
             VK_MOVE_STRUCT(_physical_device_properties)
-            VK_MOVE_PTR(_mapped_ptr);
-            VK_MOVE_VALUE(_mapped_offset);
-            VK_MOVE_VALUE(_mapped_size);
+            VK_MOVE_PTR(_mapped_ptr)
+            VK_MOVE_VALUE(_mapped_offset)
+            VK_MOVE_VALUE(_mapped_size)
         }
         return *this;
     }
@@ -72,11 +72,11 @@ public:
         if (_mapped_ptr != nullptr) {
             vkUnmapMemory(_device, _device_memory);
         }
-        VK_DESTROY_PTR_BY(vkFreeMemory, _device, _device_memory);
+        VK_DESTROY_PTR_BY(vkFreeMemory, _device, _device_memory)
     }
 
-    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_device_memory);
-    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_device_memory);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_device_memory)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_device_memory)
 
     [[nodiscard]] VkDeviceMemory deviceMemory() const { return _device_memory; }
     [[nodiscard]] VkDeviceSize allocationSize() const { return _allocation_size; }
@@ -107,7 +107,7 @@ private:
 
 public:
     vulkanBufferMemory() = default;
-    DISABLE_COPY(vulkanBufferMemory);
+    DISABLE_COPY(vulkanBufferMemory)
 
     vulkanBufferMemory(vulkanBufferMemory&& other) noexcept
         : _buffer(std::move(other._buffer)), _memory(std::move(other._memory)) {
@@ -167,7 +167,7 @@ private:
 public:
     vulkanImageMemory() = default;
 
-    DISABLE_COPY(vulkanImageMemory);
+    DISABLE_COPY(vulkanImageMemory)
 
     vulkanImageMemory(vulkanImageMemory&& other) noexcept
         : _image(std::move(other._image)), _memory(std::move(other._memory)) {

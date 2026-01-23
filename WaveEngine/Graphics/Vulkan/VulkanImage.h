@@ -24,13 +24,13 @@ public:
         create(dCtx, type, format, extent, mLevels, aLayers, samples, tiling, sMode, iniLayout, uFlags, cFlags, next);
     }
 
-    VK_MOVE_CTOR2(vulkanImage, _image, _device);
-    VK_MOVE_ASSIGN2(vulkanImage, _image, _device);
+    VK_MOVE_CTOR2(vulkanImage, _image, _device)
+    VK_MOVE_ASSIGN2(vulkanImage, _image, _device)
 
-    ~vulkanImage() { VK_DESTROY_PTR_BY(vkDestroyImage, _device, _image); }
+    ~vulkanImage() { VK_DESTROY_PTR_BY(vkDestroyImage, _device, _image) }
 
-    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image);
-    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image)
 
     [[nodiscard]] VkImage getImage() const {
         assert(_image != VK_NULL_HANDLE);
@@ -71,15 +71,15 @@ public:
         create(dCtx, image, format, type, components, range, flags, next);
     }
 
-    VK_MOVE_CTOR2(vulkanImageView, _image_view, _device);
-    VK_MOVE_ASSIGN2(vulkanImageView, _image_view, _device);
+    VK_MOVE_CTOR2(vulkanImageView, _image_view, _device)
+    VK_MOVE_ASSIGN2(vulkanImageView, _image_view, _device)
 
     ~vulkanImageView() {
         destroy();
     }
 
-    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image_view);
-    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image_view);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image_view)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image_view)
 
     [[nodiscard]] VkImageView getImageView() const {
         assert(_image_view != VK_NULL_HANDLE);

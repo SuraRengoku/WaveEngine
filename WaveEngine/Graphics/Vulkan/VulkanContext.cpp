@@ -6,10 +6,10 @@ namespace WAVEENGINE::GRAPHICS::VULKAN {
 
 VkDebugUtilsMessengerEXT vulkanContext::_callback = VK_NULL_HANDLE;
 
-VKAPI_ATTR VkBool32 VKAPI_CALL vulkanContext::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData) {
+VkBool32 VKAPI_CALL vulkanContext::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                                 VkDebugUtilsMessageTypeFlagsEXT messageType,
+                                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+                                                 void* pUserData) {
 #ifdef _DEBUG
 	debug_error("::VULKAN:ERROR Validation layer: ");
 	debug_error(pCallbackData->pMessage);
@@ -120,6 +120,9 @@ bool vulkanContext::initialize() {
 	VKCall(createInstance(), "::VULKAN:ERROR Failed to create Vulkan Instance\n");
 	VKCall(pickPhysicalDevice(), "::VULKAN:ERROR Failed to pick a physical device\n");
 	VKCall(createLogicalDevice(), "::VULKAN:ERROR Failed to create a logical device\n");
+
+	loadRayTracingFunctions();
+
 	return result;
 }
 
@@ -248,14 +251,85 @@ VkResult vulkanContext::createLogicalDevice() {
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
 	deviceFeatures.sampleRateShading = VK_TRUE;
 
+	// ================================= Ray Tracing Extension ==================================
+
+	// enable Ray Tracing extension
+	UTL::vector<const char*> enabledExtensions = deviceExtensions;
+
+	// query supported extensions
+	u32 extensionsCount = 0;
+	vkEnumerateDeviceExtensionProperties(_adapterContext._physicalDevice, nullptr, &extensionsCount, nullptr);
+	UTL::vector<VkExtensionProperties> availableExtensions(extensionsCount);
+	vkEnumerateDeviceExtensionProperties(_adapterContext._physicalDevice, nullptr, &extensionsCount, availableExtensions.data());
+
+	bool rtPipelineSupported = false;
+	bool rtAccelStructSupported = false;
+	bool rtDeferredOpsSupported = false;
+
+	for (const auto& ext : availableExtensions) {
+		if (strcmp(ext.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) {
+			rtPipelineSupported = true;
+		} else if (strcmp(ext.extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0) {
+			rtAccelStructSupported = true;
+		} else if (strcmp(ext.extensionName, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) == 0) {
+			rtDeferredOpsSupported = true;
+		}
+	}
+
+	if (rtPipelineSupported && rtAccelStructSupported && rtDeferredOpsSupported) {
+		enabledExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+		enabledExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+		enabledExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+
+		enabledExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+		//enabledExtensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+		//enabledExtensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+
+#ifdef _DEBUG
+		debug_output("::VULKAN:INFO Ray Tracing extensions will be enabled\n");
+#endif
+	}
+
+	// =======================================================================================
+	
+	// =========================== Enable Ray Tracing Feature ===============================
+
+	VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeatures{};
+	rtPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+	rtPipelineFeatures.rayTracingPipeline = VK_TRUE;
+
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR accelStructFeatures{};
+	accelStructFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+	accelStructFeatures.accelerationStructure = VK_TRUE;
+	accelStructFeatures.pNext = &rtPipelineFeatures;
+
+	VkPhysicalDeviceBufferDeviceAddressFeaturesEXT bufferDeviceAddressFeatures{};
+	bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
+	bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+
+	if (rtPipelineSupported && rtAccelStructSupported && rtDeferredOpsSupported) {
+		bufferDeviceAddressFeatures.pNext = &accelStructFeatures;
+	}
+
+	VkPhysicalDeviceFeatures2 deviceFeatures2{};
+	deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	deviceFeatures2.features = deviceFeatures;
+
+	if (rtPipelineSupported && rtAccelStructSupported && rtDeferredOpsSupported) {
+		deviceFeatures2.pNext = &bufferDeviceAddressFeatures;
+	}
+
+	// =======================================================================================
+
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.queueCreateInfoCount = static_cast<u32>(queueCreateInfos.size());
 	createInfo.pQueueCreateInfos = queueCreateInfos.data();
-	createInfo.pEnabledFeatures = &deviceFeatures;
+	createInfo.pEnabledFeatures = nullptr;
+	createInfo.pNext = &deviceFeatures2;
 #ifdef _WIN32
-	createInfo.enabledExtensionCount = static_cast<u32>(deviceExtensions.size());
-	createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+	createInfo.enabledExtensionCount = static_cast<u32>(enabledExtensions.size());
+	createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 #elif defined(__APPLE__) && defined(__arm64__)
 	UTL::vector<const char*> requiredExtensions = getRequiredExtension(vk_physicalDevice);
 	requiredExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -285,6 +359,40 @@ VkResult vulkanContext::createLogicalDevice() {
 #endif
 
 	return VK_SUCCESS;
+}
+
+/////////////////////////////////////////// RAY TRACING FEATURES /////////////////////////////////////////////////
+
+PFN_vkCreateRayTracingPipelinesKHR vulkanContext::vkCreateRayTracingPipelinesKHR = nullptr;
+PFN_vkGetRayTracingShaderGroupHandlesKHR vulkanContext::vkGetRayTracingShaderGroupHandlesKHR = nullptr;
+PFN_vkCmdTraceRaysKHR vulkanContext::vkCmdTraceRaysKHR = nullptr;
+
+bool vulkanContext::loadRayTracingFunctions() {
+	vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(
+		vkGetDeviceProcAddr(_deviceContext._device, "vkCreateRayTracingPipelinesKHR"));
+
+	vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(
+		vkGetDeviceProcAddr(_deviceContext._device, "vkGetRayTracingShaderGroupHandlesKHR"));
+
+	vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(
+		vkGetDeviceProcAddr(_deviceContext._device, "vkCmdTraceRaysKHR"));
+
+	_rayTracingSupported = (vkCreateRayTracingPipelinesKHR != nullptr);
+
+#ifdef _DEBUG
+	if (_rayTracingSupported) {
+		debug_output("::VULKAN::INFO Ray tracing functions loaded successfully\n");
+		debug_output("  - vkCreateRayTracingPipelinesKHR: %p\n", (void*)vkCreateRayTracingPipelinesKHR);
+		debug_output("  - vkGetRayTracingShaderGroupHandlesKHR: %p\n", (void*)vkGetRayTracingShaderGroupHandlesKHR);
+		debug_output("  - vkCmdTraceRaysKHR: %p\n", (void*)vkCmdTraceRaysKHR);
+	} else {
+		debug_output("::VULKAN:WARNING Ray Tracing not supported on this device\n");
+		debug_output("  - Device extensions may not be enabled\n");
+		debug_output("  - Check if VK_KHR_ray_tracing_pipeline was enabled during device creation\n");
+	}
+#endif
+
+	return _rayTracingSupported;
 }
 
 }

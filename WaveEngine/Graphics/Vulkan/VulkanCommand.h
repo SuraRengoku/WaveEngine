@@ -88,18 +88,6 @@ public:
     vulkanRenderEncoder(const vulkanCommandBuffer& cmd,
         VkRenderPass renderPass, VkFramebuffer framebuffer);
 
-    bool needsReinit(VkRenderPass renderPass, VkFramebuffer framebuffer) const {
-#ifdef _DEBUG
-        bool rpChanged = _renderPass != renderPass;
-        bool fbChanged = _framebuffer != framebuffer;
-        if (rpChanged || fbChanged) {
-            debug_output("::VULKAN:INFO Encoder needs reinit - RenderPass changed: %d, Framebuffer changed: %d\n",
-                rpChanged, fbChanged);
-        }
-#endif
-        return _renderPass != renderPass || _framebuffer != framebuffer;
-    }
-
     // ================= RenderPass Scope ===================
     void beginRender(const VkRect2D& renderArea, const VkClearValue* clearValues, u32 clearCount, 
         VkSubpassContents contents = VK_SUBPASS_CONTENTS_INLINE);
@@ -110,6 +98,7 @@ public:
 
     // =================== Dynamic state ====================
     void setViewport(const VkViewport& viewport);
+    void setViewport(float x, float y, float width, float height, float maxDepth, float minDepth);
     void setScissor(const VkRect2D& scissor);
 
     // ================ Pipeline & Resources ================
@@ -132,9 +121,59 @@ public:
 
     // ======================== Utils =======================
     void reset();
+	
+    const VkCommandBuffer& commandBuffer() const noexcept {
+        assert(_commandBuffer != VK_NULL_HANDLE);
+        return _commandBuffer;
+    }
+
+    const VkRenderPass& renderPass() const noexcept {
+        assert(_renderPass != VK_NULL_HANDLE);
+        return _renderPass;
+    }
+
+    const VkFramebuffer& framebuffer() const noexcept {
+	    assert(_framebuffer != VK_NULL_HANDLE);
+        return _framebuffer;
+    }
+
+    bool needsReinit(VkRenderPass renderPass, VkFramebuffer framebuffer) const;
+
+    // ================ use cached encoder ===================
+
+
+//	const vulkanFramebuffer& fb_wrapper = swapchains[id].framebuffer(image_index);
+//	VkFramebuffer current_framebuffer = fb_wrapper.handle();
+//
+//#ifdef _DEBUG
+//	static VkFramebuffer last_framebuffers[frame_buffer_count] = {};
+//	if (last_framebuffers[image_index] != current_framebuffer) {
+//		debug_output("::VULKAN:WARNING Framebuffer for image %u changed: %p -> %p\n",
+//			image_index, (void*)last_framebuffers[image_index], (void*)current_framebuffer);
+//		last_framebuffers[image_index] = current_framebuffer;
+//	}
+//#endif
+//
+//	auto& encoder_opt = frame_data.render_encoders[image_index];
+//
+//	if (!encoder_opt.has_value()
+//		|| encoder_opt->needsReinit(render_passes.forward, current_framebuffer)) {
+//#ifdef _DEBUG
+//		debug_output("::VULKAN:INFO Reinitialize encoder for swapchain image %u, framebuffer %p\n",
+//			image_index, (void*)current_framebuffer);
+//#endif
+//		encoder_opt.emplace(
+//			frame_data.graphics_cmd_buffer,
+//			render_passes.forward,
+//			current_framebuffer);
+//	}
+//
+//	auto& render_encoder = encoder_opt.value();
+    //auto& render_encoder = frame_data.render_encoders[image_index].value();
+    // =======================================================
 
 private:
-    VkCommandBuffer                 _commandBuffer{ VK_NULL_HANDLE };
+    VkCommandBuffer                 _commandBuffer{ VK_NULL_HANDLE};
     VkRenderPass                    _renderPass{ VK_NULL_HANDLE };
     VkFramebuffer                   _framebuffer{ VK_NULL_HANDLE };
     bool                            _active{ false };

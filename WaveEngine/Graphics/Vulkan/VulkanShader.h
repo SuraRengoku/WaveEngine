@@ -2,6 +2,7 @@
 #include <filesystem>
 #include "VulkanCommonHeaders.h"
 #include <shaderc/shaderc.hpp>
+#include "VulkanContext.h"
 
 #if _DEBUG
 #pragma comment(lib, "shaderc_combinedd.lib")
@@ -64,35 +65,50 @@ private:
     VkShaderModule                      _shaderModule{ VK_NULL_HANDLE };
     VkDevice                            _device{ VK_NULL_HANDLE };
     shaderType::type                    _stage{ shaderType::undefined };
+    std::string                         _entryPoint;
 
 public:
     vulkanShader() = default;
-    vulkanShader(VkDevice device) : _device(device) {}
-    vulkanShader(VkDevice device, VkShaderModuleCreateInfo& createInfo, engineShader::id shaderId) : _device(device) {
-        create(createInfo, shaderId);
+
+    DISABLE_COPY(vulkanShader);
+
+    vulkanShader(VkDevice device, engineShader::id shaderId) {
+        create(device, shaderId);
     }
+
+    vulkanShader& operator=(vulkanShader&& other) noexcept {
+        if (this != &other) {
+            VK_MOVE_PTR(_shaderModule)
+            VK_MOVE_PTR(_device)
+            _stage = other._stage;
+            other._stage = shaderType::undefined;
+            _entryPoint = std::move(other._entryPoint);
+        }
+        return *this;
+    }
+
     vulkanShader(vulkanShader&& other) noexcept {
-        VK_MOVE_PTR(_shaderModule);
-        VK_MOVE_PTR(_device);
+        VK_MOVE_PTR(_shaderModule)
+        VK_MOVE_PTR(_device)
         _stage = other._stage;
         other._stage = shaderType::undefined;
+        _entryPoint = std::move(other._entryPoint);
     }
 
-    VK_DEFINE_PTR_TYPE_OPERATOR(_shaderModule);
-    VK_DEFINE_ADDRESS_FUNCTION(_shaderModule);
+    [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_shaderModule)
+    [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_shaderModule)
 
-    VkShaderModule shaderModule() const { return _shaderModule; }
+    [[nodiscard]] const VkShaderModule& handle() const { return _shaderModule; }
+    const char* entryPoint() const { return _entryPoint.c_str(); }
     shaderType::type stage() const { return _stage; }
 
+    [[nodiscard]] VkShaderStageFlagBits vkStage() const;
+
     ~vulkanShader() {
-        VK_DESTROY_PTR_BY(vkDestroyShaderModule, _device, _shaderModule);
+        VK_DESTROY_PTR_BY(vkDestroyShaderModule, _device, _shaderModule)
     }
 
-    void setDevice(VkDevice device) {
-        _device = device;
-    }
-
-    VkResult create(VkShaderModuleCreateInfo& createInfo, engineShader::id shaderId);
+    VkResult create(VkDevice device, engineShader::id shaderId);
 };
 
 class shaderIncluder : public shaderc::CompileOptions::IncluderInterface {
@@ -117,7 +133,7 @@ public:
     vulkanShaderCompiler() = default;
     ~vulkanShaderCompiler() = default;
 
-    DISABLE_COPY_AND_MOVE(vulkanShaderCompiler);
+    DISABLE_COPY_AND_MOVE(vulkanShaderCompiler)
 
     std::vector<u32> compile(const shaderFileInfo& info, const std::filesystem::path& full_path) const;
 private:
