@@ -105,7 +105,7 @@ enum class descriptorPoolPolicy : u8 {
 	NeverFree,				// immutable
 	BulkReset,				// per_scene
 	PerFrameReset,			// per_frame
-	Linear,					// per_draw
+	Linear,					// per_draw (with overflow pool)
 	DeferredFree,			// runtime / hot-reload
 };
 
@@ -124,10 +124,12 @@ public:
 
 	bool initialize(VkDevice device, VkDescriptorPoolCreateInfo& createInfo);
 	bool initialize(VkDevice device, u32 max_sets, VkDescriptorPoolCreateFlags flags = 0);
-	bool initialize(VkDevice device, u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_Sizes, VkDescriptorPoolCreateFlags flags = 0);
+	bool initialize(VkDevice device, u32 max_sets, const UTL::vector<VkDescriptorPoolSize>& pool_sizes, VkDescriptorPoolCreateFlags flags = 0);
 
-	[[nodiscard]] vulkanDescriptorSetHandle allocate(vulkanDescriptorSetLayout layout);
+	[[nodiscard]] vulkanDescriptorSetHandle allocate(const vulkanDescriptorSetLayout& layout);
 	[[nodiscard]] UTL::vector<vulkanDescriptorSetHandle> allocate(const UTL::vector<vulkanDescriptorSetLayout>& layouts);
+
+	// ====================================== manual Manager =====================================
 
 	// Calling this will invalidate all sets in the pool immediately
 	// before calling reset you have to make sure all sets in the pool will no longer be used by GPU
@@ -138,27 +140,67 @@ public:
 
 	// totally release the pool
 	void release();
+
+	// ==================================== automatic Manager ===================================
+	
+	// called at the beginning of a frame, policy dependent
+	void begin_frame(u32 frame_index);
+	// called at the end of a frame, optional
+	void end_frame(u32 frame_index);
+
+	// batch reset, policy dependent
+	void bulk_reset();
+
+	// ===================================== deferred release ===================================
+
+	// put descriptor set into deferred release list
+	void deferred_free(vulkanDescriptorSetHandle& descSet, u32 current_frame_index);
 	// after frame fence signaled
 	void process_deferred_free();
-
 
 	[[nodiscard]] constexpr VkDescriptorPool pool() const { return _pool; }
 	[[nodiscard]] constexpr u32 capacity() const { return _capacity; }
 	[[nodiscard]] constexpr u32 size() const { return _size; }
+	[[nodiscard]] constexpr descriptorPoolPolicy policy() const { return _policy; }
+	[[nodiscard]] constexpr bool is_valid() const { return _pool != VK_NULL_HANDLE; }
 
 private:
-	descriptorPoolPolicy							_policy;
+	// ========================================== Utils =========================================
 
-	// std::unique_ptr<u32[]>							_free_handles{};
-	// only used when pool is freed deferred
-	UTL::vector<VkDescriptorSet>					_deferred_free_sets{};
+	// adjust create flags based on policy
+	VkDescriptorPoolCreateFlags get_policy_flags() const;
+	
+	vulkanDescriptorSetHandle allocate_from_overflow(const vulkanDescriptorSetLayout& layout);
+	UTL::vector<vulkanDescriptorSetHandle> allocate_batch_from_overflow(const UTL::vector<vulkanDescriptorSetLayout>& layouts);
+
+	bool create_overflow_pool();
+
+	struct DeferredFreeItem {
+		VkDescriptorSet set;
+		u32 frame_index;
+	};
+
+	descriptorPoolPolicy							_policy;
 
 	VkDescriptorPool								_pool{ VK_NULL_HANDLE };
 	VkDevice										_device{ VK_NULL_HANDLE };
-	std::mutex										_mutex{};
+
 	u32												_capacity{ 0 };
 	u32												_size{ 0 };
+	u32												_current_frame{ 0 };
+
 	const UTL::vector<VkDescriptorPoolSize>			_pool_sizes{};
+
+	// only used when pool is freed deferred
+	UTL::vector<DeferredFreeItem>					_deferred_free_queue{};
+
+	UTL::vector<VkDescriptorPool>					_overflow_pools{};
+	// number of allocation in the overflow pool
+	UTL::vector<u32>								_overflow_sizes{}; 
+
+	std::mutex										_mutex{};
+
+
 };
 
 }
