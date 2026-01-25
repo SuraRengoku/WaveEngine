@@ -381,10 +381,10 @@ bool vulkanContext::loadRayTracingFunctions() {
 
 #ifdef _DEBUG
 	if (_rayTracingSupported) {
-		debug_output("::VULKAN::INFO Ray tracing functions loaded successfully\n");
-		debug_output("  - vkCreateRayTracingPipelinesKHR: %p\n", (void*)vkCreateRayTracingPipelinesKHR);
-		debug_output("  - vkGetRayTracingShaderGroupHandlesKHR: %p\n", (void*)vkGetRayTracingShaderGroupHandlesKHR);
-		debug_output("  - vkCmdTraceRaysKHR: %p\n", (void*)vkCmdTraceRaysKHR);
+		debug_output("::VULKAN:INFO Ray tracing functions loaded successfully\n");
+		//debug_output("  - vkCreateRayTracingPipelinesKHR: %p\n", (void*)vkCreateRayTracingPipelinesKHR);
+		//debug_output("  - vkGetRayTracingShaderGroupHandlesKHR: %p\n", (void*)vkGetRayTracingShaderGroupHandlesKHR);
+		//debug_output("  - vkCmdTraceRaysKHR: %p\n", (void*)vkCmdTraceRaysKHR);
 	} else {
 		debug_output("::VULKAN:WARNING Ray Tracing not supported on this device\n");
 		debug_output("  - Device extensions may not be enabled\n");

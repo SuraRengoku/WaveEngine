@@ -38,6 +38,43 @@ VkResult vulkanDescriptorSetLayout::create(const deviceContext& dCtx, u32 bindin
 	return create(dCtx, createInfo);
 }
 
+vulkanDescriptorSetHandle& vulkanDescriptorSetHandle::operator=(vulkanDescriptorSetHandle&& other) noexcept {
+	if (this != &other) {
+		// can overwrite existing descriptor set
+		// descriptor sets allocated from PerFrameReset pool will automatically be invalidated when the pool reset
+
+#ifdef _DEBUG
+		if (_set != VK_NULL_HANDLE && _container) {
+			if (_container->policy() == descriptorPoolPolicy::DeferredFree) {
+				debug_output("::VULKAN:WARNING Overwriting descriptor set from DeferredFree pool without explicit free\n");
+			}
+		}
+#endif
+
+		_set = other._set;
+		other._set = VK_NULL_HANDLE;
+#ifdef _DEBUG
+		_container = other._container;
+		other._container = nullptr;
+#endif
+	}
+	return *this;
+}
+
+void vulkanDescriptorSetHandle::write() const { return; }
+
+void vulkanDescriptorSetHandle::update() { return; }
+
+vulkanDescriptorSetHandle::~vulkanDescriptorSetHandle() {
+#ifdef _DEBUG
+	if (_set != VK_NULL_HANDLE && _container) {
+		if (_container->policy() == descriptorPoolPolicy::DeferredFree) {
+			debug_output("::VULKAN:WARNING Descriptor set from DeferredFree pool not explicitly freed\n");
+		}
+	}
+#endif
+}
+
 /////////////////////////////////// vulkanDescriptorPool //////////////////////////////////
 
 VkDescriptorPoolCreateFlags vulkanDescriptorPool::get_policy_flags() const {
@@ -79,8 +116,8 @@ bool vulkanDescriptorPool::initialize(VkDevice device, VkDescriptorPoolCreateInf
 	}
 
 #ifdef _DEBUG
-	debug_output("::VULKAN:INFO Descriptor pool created (policy: %u, maxSets: %u)\n",
-		static_cast<u32>(_policy), _capacity);
+	debug_output("::VULKAN:INFO Descriptor pool created [%s, maxSets: %u]\n",
+		VKX::descriptorPoolPolicyToString(_policy), _capacity);
 #endif
 
 	return true;
@@ -122,7 +159,7 @@ vulkanDescriptorSetHandle vulkanDescriptorPool::allocate(const vulkanDescriptorS
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = _pool;
 	allocInfo.descriptorSetCount = 1;
-	VkDescriptorSetLayout vkSetLayout = layout.layout();
+	VkDescriptorSetLayout vkSetLayout = layout.handle();
 	allocInfo.pSetLayouts = &vkSetLayout;
 	
 	VkDescriptorSet vkSet{ VK_NULL_HANDLE };
@@ -160,7 +197,7 @@ UTL::vector<vulkanDescriptorSetHandle> vulkanDescriptorPool::allocate(const UTL:
 	vkSetLayouts.reserve(layouts.size());
 	for (const auto& layout : layouts) {
 		assert(layout.is_valid());
-		vkSetLayouts.emplace_back(layout.layout());
+		vkSetLayouts.emplace_back(layout.handle());
 	}
 	
 	VkDescriptorSetAllocateInfo allocInfo{};
@@ -217,7 +254,9 @@ void vulkanDescriptorPool::reset() {
 		_deferred_free_queue.clear();
 
 #ifdef _DEBUG
-		debug_output("::VULKAN:INFO Descriptor pool reset\n");
+		if (_policy != descriptorPoolPolicy::PerFrameReset) {
+			debug_output("::VULKAN:INFO Descriptor pool reset\n");
+		}
 #endif
 	} else {
 		debug_error("::VULKAN:ERROR Failed to reset descriptor pool\n");
@@ -349,7 +388,8 @@ void vulkanDescriptorPool::release() {
 		_pool = VK_NULL_HANDLE;
 
 #ifdef _DEBUG
-		debug_output("::VULKAN:INFO Main descriptor pool released\n");
+		debug_output("::VULKAN:INFO Main descriptor pool [%s] released\n", 
+			VKX::descriptorPoolPolicyToString(_policy));
 #endif
 	}
 
@@ -407,7 +447,7 @@ vulkanDescriptorSetHandle vulkanDescriptorPool::allocate_from_overflow(const vul
 			allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 			allocInfo.descriptorPool = _overflow_pools[i];
 			allocInfo.descriptorSetCount = 1;
-			VkDescriptorSetLayout vkLayout = layout.layout();
+			VkDescriptorSetLayout vkLayout = layout.handle();
 			allocInfo.pSetLayouts = &vkLayout;
 
 			VkDescriptorSet set = VK_NULL_HANDLE;
@@ -439,7 +479,7 @@ UTL::vector<vulkanDescriptorSetHandle> vulkanDescriptorPool::allocate_batch_from
 	UTL::vector<VkDescriptorSetLayout> vkSetLayouts;
 	vkSetLayouts.reserve(layouts.size());
 	for (const auto& layout : layouts) {
-		vkSetLayouts.emplace_back(layout.layout());
+		vkSetLayouts.emplace_back(layout.handle());
 	}
 
 	for (size_t i = 0; i < _overflow_pools.size(); ++i) {

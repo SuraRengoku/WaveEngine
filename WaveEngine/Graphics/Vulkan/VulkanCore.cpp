@@ -80,7 +80,28 @@ struct {
 	vulkanPipeline		postProcess;
 } pipelines;
 
-// 
+
+
+// TODO move to specified pass file
+vulkanDescriptorSetLayout			forward_descriptor_setLayout;
+vulkanPipelineLayout				forward_pipeline_layout;
+struct ShaderConstants {
+	float				Width;
+	float				Height;
+	u32					Frame;
+	float				_padding;
+};
+struct perFrameResources {
+	vulkanBufferMemory	uniformBuffer;
+	VkDeviceMemory		uniformBufferMemory;
+	void*				uniformBufferMapped;
+	
+	vulkanDescriptorSetHandle descriptorSet{ VK_NULL_HANDLE };
+};
+perFrameResources					per_frame_resources[frame_buffer_count];
+u32									global_frame_counter = 0;
+
+
 
 // TODO maybe we can move this to specific pass file
 UTL::vector<SHADERS::vulkanShader>	shaders{ SHADERS::engineShader::count };
@@ -104,6 +125,133 @@ bool check_vulkan_runtime() {
 void __declspec(noinline) process_deferred_releases() {
 	std::lock_guard lock{ deferred_releases_mutex };
 	deferred_pool.process_deferred_free();
+}
+
+// TODO move to specified pass file
+bool create_descriptor_setLayouts() {
+	// Forward pass descriptor set layout
+	// adjust based on shader resources
+
+	UTL::vector<VkDescriptorSetLayoutBinding> bindings;
+
+	// Binding 1: Uniform Buffer (ShaderConstants in FillColor.hlsl)
+	VkDescriptorSetLayoutBinding uboBinding{};
+	uboBinding.binding = 1;
+	uboBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboBinding.descriptorCount = 1;
+	uboBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	uboBinding.pImmutableSamplers = nullptr;
+	bindings.push_back(uboBinding);
+
+	VkResult result = forward_descriptor_setLayout.create(
+		vk_ctx.device_context(),
+		static_cast<u32>(bindings.size()),
+		bindings.empty() ? nullptr : bindings.data()
+	);
+
+	if (result != VK_SUCCESS) {
+		debug_error("::VULKAN:ERROR Failed to create forward descriptor set layout\n");
+		return false;
+	}
+#ifdef _DEBUG
+	debug_output("::VULKAN:INFO Forward descriptor set layout created\n");
+#endif
+	return true;
+}
+
+// TODO move to specified pass file
+bool create_pipeline_layouts() {
+	// create pipeline layout
+	// create an empty pipeline layout even if there is no descriptor sets
+
+	u32 setLayoutCount = 1;
+	VkDescriptorSetLayout pSetLayouts[] = { forward_descriptor_setLayout.handle() };
+
+	VkResult result = forward_pipeline_layout.create(
+		vk_ctx.device_context(),
+		setLayoutCount,
+		pSetLayouts,
+		0,
+		nullptr
+	);
+
+	if (result != VK_SUCCESS) {
+		debug_error("::VULKAN:ERROR Failed to create forward pipeline layout\n");
+		return false;
+	}
+
+#ifdef _DEBUG
+	debug_output("::VULKAN:INFO Forward pipeline layout created\n");
+#endif
+	return true;
+}
+
+bool create_uniform_buffers() {
+	VkDeviceSize bufferSize = sizeof(ShaderConstants);
+
+	for (u32 i{0}; i < frame_buffer_count; ++i) {
+		VkBufferCreateInfo bufferInfo{};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferInfo.size = bufferSize;
+		bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VkMemoryPropertyFlags memoryProperties = 
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+		VkResult result = per_frame_resources[i].uniformBuffer.create(
+			vk_ctx.device(),
+			vk_ctx.physical_device(),
+			bufferInfo,
+			memoryProperties
+		);
+
+		if (result != VK_SUCCESS) {
+			debug_error("::VULKAN:ERROR Failed to create uniform buffer for frame %u\n", i);
+			// clear buffers already exist
+			for (u32 j = 0; j <= i; ++j) {
+				per_frame_resources[j].uniformBuffer = vulkanBufferMemory();
+			}
+			return false;
+		}
+		
+		result = per_frame_resources[i].uniformBuffer.mapMemory(
+			per_frame_resources[i].uniformBufferMapped,
+			bufferSize,
+			0,
+			memoryMapAccess::Write
+		);
+
+		if (result != VK_SUCCESS) {
+			debug_error("::VULKAN:ERROR Failed to map uniform buffer memory for frame %u\n", i);
+			// clear
+			for (u32 j = 0; j <= i; ++j) {
+				per_frame_resources[j].uniformBuffer = vulkanBufferMemory();
+			}
+			return false;
+		}
+	}
+
+#ifdef _DEBUG
+	debug_output("::VULKAN:INFO Uniform buffers created and mapped for all frames\n");
+#endif
+	return true;
+}
+
+void destroy_uniform_buffers() {
+	for (u32 i{0}; i < frame_buffer_count; ++i) {
+		if (per_frame_resources[i].uniformBufferMapped) {
+			per_frame_resources[i].uniformBuffer.unMapMemory(memoryMapAccess::Write);
+			per_frame_resources[i].uniformBufferMapped = nullptr;
+		}
+
+		// automatically clear buffer and memory by destructor
+		per_frame_resources[i].uniformBuffer = vulkanBufferMemory();
+	}
+#ifdef _DEBUG
+	debug_output("::VULKAN:INFO Uniform buffers destroyed\n");
+#endif
 }
 
 }
@@ -169,6 +317,17 @@ bool initialize() {
 			"::VULKAN:ERROR Failed to shader module\n");
 	}
 
+	// TODO move to specified pass file
+	if (!create_descriptor_setLayouts()) {
+		return false;
+	}
+	if (!create_pipeline_layouts()) {
+		return false;
+	}
+	if (!create_uniform_buffers()) {
+		return false;
+	}
+ 
 	return true;
 }
 
@@ -192,6 +351,12 @@ void shutdown() {
 	shaders.clear();
 
 	pipelines.forwardOpaque.destroy();
+
+	destroy_uniform_buffers();
+
+	// TODO move to specified pass file
+	forward_pipeline_layout = vulkanPipelineLayout();
+	forward_descriptor_setLayout = vulkanDescriptorSetLayout();
 
 	render_passes.preDepth.destroy();
 	render_passes.forward.destroy();
@@ -316,6 +481,7 @@ surface create_surface(PLATFORM::window window) {
 		};
 
 		// Vertex Input
+		// TODO
 
 		// Input Assembly
 		forwardOpaquePipelineInfo._inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -326,7 +492,7 @@ surface create_surface(PLATFORM::window window) {
 		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
 		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
 		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.lineWidth = 1.0f;
-		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_NONE;
 		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 		forwardOpaquePipelineInfo._rasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;
 
@@ -335,8 +501,8 @@ surface create_surface(PLATFORM::window window) {
 		forwardOpaquePipelineInfo._multisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 		// Depth & Stencil
-		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
-		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
+		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthTestEnable = VK_FALSE;
+		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthWriteEnable = VK_FALSE;
 		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
 		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
 		forwardOpaquePipelineInfo._depthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
@@ -357,12 +523,12 @@ surface create_surface(PLATFORM::window window) {
 		// Dynamic States
 		forwardOpaquePipelineInfo.setDynamicViewportScissor(1);
 
-		vulkanPipelineLayout pipelineLayout;
-		VKCall(pipelineLayout.create(vk_ctx.device_context(), 0, nullptr, 0, nullptr),
-			"::VULKAN:ERROR Failed to create pipeline layout\n");
+		//vulkanPipelineLayout pipelineLayout;
+		//VKCall(pipelineLayout.create(vk_ctx.device_context(), 0, nullptr, 0, nullptr),
+		//	"::VULKAN:ERROR Failed to create pipeline layout\n");
 
 		// base information
-		forwardOpaquePipelineInfo._createInfo.layout = pipelineLayout.handle();
+		forwardOpaquePipelineInfo._createInfo.layout = forward_pipeline_layout.handle();
 		forwardOpaquePipelineInfo._createInfo.renderPass = render_passes.forward;
 		forwardOpaquePipelineInfo._createInfo.subpass = 0;
 
@@ -390,30 +556,78 @@ void remove_surface(surface_id id) {
 
 void resize_surface(surface_id id, u32 width, u32 height) {
 	// TODO
+	// wait GPU finish current frame
+	// destroy old swap chain and framebuffers
+	// create new swap chain and framebuffers
 }
 
 u32 surface_width(surface_id id) {
-	return 0;
+	return swapchains[id].width();
 }
 
 u32 surface_height(surface_id id) {
-	return 0;
+	return swapchains[id].height();
 }
 
 void render_surface(surface_id id) {
 	const u32 frame_idx = current_frame_index();
 	frameContext& frame_data = frames_data[frame_idx];
+	perFrameResources& frame_resources = per_frame_resources[frame_idx];
 
 	assert(frame_data.frame_index == frame_idx);
 
 	// wait for completion of current frame
 	frame_data.fence.wait(VK_TRUE, UINT64_MAX);
 
+	per_frame_pool[frame_idx].begin_frame(frame_idx);
+	deferred_pool.begin_frame(frame_idx);
+
 	// acquire swap chain image
 	u32 image_index;
-	vkAcquireNextImageKHR(vk_ctx.device(), swapchains[id].swapchain(), UINT64_MAX, frame_data.image_available_semaphore, VK_NULL_HANDLE, &image_index);
+	VkResult ac_result = vkAcquireNextImageKHR(vk_ctx.device(), swapchains[id].swapchain(), UINT64_MAX, frame_data.image_available_semaphore, VK_NULL_HANDLE, &image_index);
+	// when swap chain out of date
+	if (ac_result == VK_ERROR_OUT_OF_DATE_KHR || ac_result == VK_SUBOPTIMAL_KHR) {
+#ifdef _DEBUG
+		debug_output("::VULKAN:WARNING Swapchain out of date, need to recreate\n");
+#endif
+		return;
+	} else if (ac_result != VK_SUCCESS) {
+		debug_error("::VULKAN:ERROR Failed to acquire swapchain image\n");
+		return;
+	}
 
 	frame_data.fence.reset();
+
+	// TODO ========================  move to specified pass file =================================
+	frame_resources.descriptorSet = per_frame_pool[frame_idx].allocate(forward_descriptor_setLayout);
+	if (!frame_resources.descriptorSet.is_valid()) {
+		debug_error("::VULKAN:ERROR Failed to allocate descriptor set\n");
+		return;
+	}
+
+	ShaderConstants* constants = static_cast<ShaderConstants*>(frame_resources.uniformBufferMapped);
+	constants->Width = static_cast<float>(swapchains[id].width());
+	constants->Height = static_cast<float>(swapchains[id].height());
+	constants->Frame = global_frame_counter++;
+	constants->_padding = 0.0f;
+
+	VkDescriptorBufferInfo bufferInfo{};
+	bufferInfo.buffer = frame_resources.uniformBuffer.buffer();
+	bufferInfo.offset = 0;
+	bufferInfo.range = sizeof(ShaderConstants);
+
+	VkWriteDescriptorSet descriptorWrite{};
+	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrite.dstSet = frame_resources.descriptorSet.set();
+	descriptorWrite.dstBinding = 1;
+	descriptorWrite.dstArrayElement = 0;
+	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrite.descriptorCount = 1;
+	descriptorWrite.pBufferInfo = &bufferInfo;
+
+	vkUpdateDescriptorSets(vk_ctx.device(), 1, &descriptorWrite, 0, nullptr);
+
+	// TODO =======================================================================================
 
 	// reset and begin recording
 	frame_data.graphics_cmd_buffer.resetCmd();
@@ -430,9 +644,8 @@ void render_surface(surface_id id) {
 	render_area.extent = swapchains[id].extent();
 	
 	UTL::vector<VkClearValue> clear_values(2);
-	clear_values[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };  
+	clear_values[0].color = { {0.1f, 0.1f, 0.15f, 1.0f} };  
 	clear_values[1].depthStencil = { 1.0f, 0 };
-
 
 	// forward - forwardOpaque 
 	{
@@ -444,22 +657,40 @@ void render_surface(surface_id id) {
 			0.0f, 1.0f);
 		render_encoder.setScissor(render_area);
 
-		// TODO:
-		// render_encoder.bindPipeline(pipelines.forwardOpaque);
-		// render_encoder->bindDescriptorSets(...);
-		// render_encoder->draw(...);
+		render_encoder.bindPipeline(pipelines.forwardOpaque);
+
+		VkDescriptorSet sets[] = { frame_resources.descriptorSet.set() };
+		render_encoder.bindDescriptorSets(
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			forward_pipeline_layout.handle(),
+			0,
+			sets,1,
+			nullptr, 0
+		);
+
+		render_encoder.draw(3, 1, 0, 0);
 
 		render_encoder.endRender();
 		render_encoder.reset();
 	}
-
 
 	frame_data.graphics_cmd_buffer.endCmd();
 
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	vk_ctx.graphics_queue().submit(frame_data, waitStages);
 
-	vk_ctx.present_queue().present(frame_data, swapchains[id].swapchain(), image_index, nullptr);
+	VkResult present_result = vk_ctx.present_queue().present(frame_data, swapchains[id].swapchain(), image_index, nullptr);
+
+	if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
+#ifdef _DEBUG
+		debug_output("::VULKAN:WARNING Swapchain out of date after present\n");
+#endif
+	} else if (present_result != VK_SUCCESS) {
+		debug_error("::VULKAN:ERROR Failed to present swapchain image\n");
+	}
+
+	per_frame_pool[frame_idx].end_frame(frame_idx);
+	deferred_pool.end_frame(frame_idx);
 
 	current_frame.store((frame_idx + 1) % frame_buffer_count, std::memory_order_release);
 }

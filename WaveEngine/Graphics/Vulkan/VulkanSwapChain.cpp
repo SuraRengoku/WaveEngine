@@ -133,6 +133,11 @@ void vulkanSwapChain::create() {
 
 #ifdef _DEBUG
     debug_output("::VULKAN:INFO Swap chain successfully created\n");
+    debug_output("  - Extent: %ux%u\n", _extent.width, _extent.height);
+    debug_output("  - Format: %s\n", VKX::formatToString(_surface_format.format));
+    debug_output("  - Color Space: %s\n", VKX::colorSpaceToString(_surface_format.colorSpace));
+    debug_output("  - Present Mode: %s\n", VKX::presentModeToString(_present_mode));
+    debug_output("  - Image Count: %u\n", static_cast<u32>(_color_images.size()));
 #endif
 }
 
@@ -188,10 +193,18 @@ void vulkanSwapChain::createDepthResources() {
 
 #ifdef _DEBUG
     debug_output("::VULKAN:INFO Swap chain depth resources successfully created\n");
+    debug_output("  - Extent: %ux%ux%u\n", _extent.width, _extent.height, 1);
+    debug_output("  - Format: %s\n", VKX::formatToString(depthFormat));
 #endif
 }
 
 void vulkanSwapChain::destroyDepthResources() {
+#ifdef _DEBUG
+    if (_depth_image_view.isValid()) {
+        debug_output("::VULKAN:INFO Destroying depth resources\n");
+    }
+#endif
+
     // TODO do we also have to destroy _depth_image
     _depth_image_view.destroy();
 }
@@ -220,10 +233,21 @@ void vulkanSwapChain::createFramebuffers(const VkRenderPass& renderPass, bool wi
 
 #ifdef _DEBUG
     debug_output("::VULKAN:INFO Swap chain framebuffers successfully created\n");
+    debug_output("  - Framebuffer Count: %u\n", static_cast<u32>(_framebuffers.size()));
+    debug_output("  - Dimensions: %ux%ux%u\n", _extent.width, _extent.height, 1);
+    debug_output("  - Attachments per Framebuffer: %u (%s)\n",
+        withDepth ? 2 : 1,
+        withDepth ? "Color + Depth" : "Color only");
 #endif
 }
 
 void vulkanSwapChain::destroyFramebuffers() {
+#ifdef _DEBUG
+    u32 count = static_cast<u32>(_framebuffers.size());
+    if (count > 0) {
+        debug_output("::VULKAN:INFO Destroying %u framebuffer(s)\n", count);
+    }
+#endif
     for (auto& framebuffer : _framebuffers) {
         framebuffer.destroy();
     }

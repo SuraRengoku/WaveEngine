@@ -24,7 +24,7 @@ public:
     }
 
     VK_MOVE_CTOR2(vulkanBuffer, _buffer, _device);
-    VK_MOVE_ASSIGN2(vulkanBuffer, _buffer, _device);
+    VK_MOVE_ASSIGN2_WITH_DESTROY(vulkanBuffer, _buffer, _device, vkDestroyBuffer);
 
     ~vulkanBuffer() {
         VK_DESTROY_PTR_BY(vkDestroyBuffer, _device, _buffer);
@@ -35,7 +35,7 @@ public:
     [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_buffer);
     [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_buffer);
 
-    [[nodiscard]] VkBuffer getBuffer() const {
+    [[nodiscard]] VkBuffer handle() const {
         assert(_buffer != VK_NULL_HANDLE);
         return _buffer;
     }
@@ -85,7 +85,7 @@ public:
     [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_buffer_view);
     [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_buffer_view);
 
-    [[nodiscard]] VkBufferView getBufferView() const {
+    [[nodiscard]] VkBufferView handle() const {
         assert(_buffer_view != VK_NULL_HANDLE);
         return _buffer_view;
     }

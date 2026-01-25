@@ -102,8 +102,8 @@ public:
 
 class vulkanBufferMemory {
 private:
-    vulkanBuffer        _buffer;
     vulkanDeviceMemory  _memory;
+    vulkanBuffer        _buffer;
 
 public:
     vulkanBufferMemory() = default;
@@ -115,8 +115,8 @@ public:
 
     vulkanBufferMemory& operator=(vulkanBufferMemory&& other) noexcept {
         if (this != &other) {
-            _buffer = std::move(other._buffer);
             _memory = std::move(other._memory);
+            _buffer = std::move(other._buffer);
         }
         return *this;
     }
@@ -161,8 +161,8 @@ public:
 
 class vulkanImageMemory {
 private:
-    vulkanImage         _image;
     vulkanDeviceMemory  _memory;
+    vulkanImage         _image;
 
 public:
     vulkanImageMemory() = default;

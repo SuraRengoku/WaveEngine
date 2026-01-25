@@ -2,6 +2,12 @@
 
 #include "VulkanCommonHeaders.h"
 
+namespace WAVEENGINE::GRAPHICS::VULKAN {
+
+enum class descriptorPoolPolicy : u8;
+
+}
+
 namespace WAVEENGINE::GRAPHICS::VULKAN::VKX {
 //////////////////////////////Descriptor Pool Sizes///////////////////////////////////
 
@@ -88,5 +94,13 @@ VkPhysicalDeviceMemoryProperties2 findPhysicalDeviceMemoryProperties(const VkPhy
 VkFormat findDepthFormat(const VkPhysicalDevice& physical_device);
 
 VkFormat findSupportedFormat(const VkPhysicalDevice& physical_device, const UTL::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+
+const char* formatToString(VkFormat format);
+const char* colorSpaceToString(VkColorSpaceKHR colorSpace);
+const char* presentModeToString(VkPresentModeKHR presentMode);
+const char* imageLayoutToString(VkImageLayout layout);
+const char* resultToString(VkResult result);
+
+const char* descriptorPoolPolicyToString(descriptorPoolPolicy policy);
 
 }

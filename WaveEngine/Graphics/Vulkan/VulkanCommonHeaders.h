@@ -230,6 +230,29 @@ inline void debug_output(const char* message) {
 
 //////////////////////////////////////////// MOVE ASSIGNMENT ///////////////////////////////////////
 
+#define VK_MOVE_ASSIGN1_WITH_DESTROY(cName, p0, destroyFunc)						\
+		cName& operator=(cName&& other) noexcept {									\
+			if(this != &other) {													\
+				if(p0 != VK_NULL_HANDLE) {											\
+					destroyFunc(_device, p0, nullptr);								\
+				}																	\
+				VK_MOVE_PTR(p0)														\
+			}																		\
+			return *this;															\
+		}
+
+#define VK_MOVE_ASSIGN2_WITH_DESTROY(cName, handlePtr, devicePtr, destroyFunc)		\
+		cName& operator=(cName&& other) noexcept {									\
+			if(this != &other) {													\
+				if (handlePtr != VK_NULL_HANDLE) {									\
+					destroyFunc(devicePtr, handlePtr, nullptr);						\
+				}																	\
+				VK_MOVE_PTR(handlePtr)												\
+				VK_MOVE_PTR(devicePtr)												\
+			}																		\
+			return *this;															\
+		}
+
 #define VK_MOVE_ASSIGN1(cName, p0)											\
 		cName& operator=(cName&& other) noexcept {							\
 			if(this != &other) {											\

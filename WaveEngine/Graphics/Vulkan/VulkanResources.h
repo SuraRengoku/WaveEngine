@@ -36,7 +36,7 @@ public:
         create(dCtx, bindingCount, pBindings, flags, next);
     }
 
-    [[nodiscard]] VkDescriptorSetLayout layout() const {
+    [[nodiscard]] VkDescriptorSetLayout handle() const {
         return _impl ? _impl->layout : VK_NULL_HANDLE;
     }
     [[nodiscard]] bool is_valid() const {
@@ -63,28 +63,16 @@ public:
 		other._set = VK_NULL_HANDLE;
 	}
 
-	vulkanDescriptorSetHandle& operator=(vulkanDescriptorSetHandle&& other) noexcept {
-		if (this != &other) {
-			assert(_set == VK_NULL_HANDLE); // make sure already released
-			_set = other._set;
-			other._set = VK_NULL_HANDLE;
-		}
-		return *this;
-	}
+	vulkanDescriptorSetHandle& operator=(vulkanDescriptorSetHandle&& other) noexcept;
 
 	void write() const;
 
 	static void update();
 
-	~vulkanDescriptorSetHandle() {
-		// wait for deferred release
-		assert(_set == VK_NULL_HANDLE);
-	}
+	~vulkanDescriptorSetHandle();
 
 	[[nodiscard]] constexpr VkDescriptorSet set() const { return _set; }
 	[[nodiscard]] constexpr bool is_valid() const { return _set != VK_NULL_HANDLE; }
-
-	// u32							_index{ u32_invalid_id };
 
 private:
 	void invalidate() noexcept {

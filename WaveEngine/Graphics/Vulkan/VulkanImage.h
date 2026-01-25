@@ -25,7 +25,7 @@ public:
     }
 
     VK_MOVE_CTOR2(vulkanImage, _image, _device)
-    VK_MOVE_ASSIGN2(vulkanImage, _image, _device)
+    VK_MOVE_ASSIGN2_WITH_DESTROY(vulkanImage, _image, _device, vkDestroyImage)
 
     ~vulkanImage() { VK_DESTROY_PTR_BY(vkDestroyImage, _device, _image) }
 
