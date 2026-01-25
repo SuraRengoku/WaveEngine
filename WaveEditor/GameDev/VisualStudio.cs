@@ -83,11 +83,49 @@ namespace WaveEditor.GameDev {
         }
 
         public static void CloseVisualStudio() {
-            if(_vsInstance?.Solution.IsOpen == true) {
-                _vsInstance.ExecuteCommand("File.SaveAll");
-                _vsInstance.Solution.Close(true);
+            const int maxRetries = 3;
+
+            try {
+                if(_vsInstance?.Solution.IsOpen == true) {
+                    _vsInstance.ExecuteCommand("File.SaveAll");
+                    System.Threading.Thread.Sleep(500); // wait for saving
+
+                    _vsInstance.Solution.Close(true);
+                    System.Threading.Thread.Sleep(1000); // wait for closing
+                }
+
+                for(int i = 0; i < maxRetries; ++i) {
+                    try {
+                        _vsInstance?.Quit();
+                        break;
+                    } catch(COMException ex) when (ex.ErrorCode == unchecked((int)0x80010001)) {
+                        // RPC_E_CALL_REJECTED
+                        if(i < maxRetries - 1) {
+                            Debug.WriteLine($"Visual Studio busy, retrying Quit... (attempt {i + 1})");
+                            System.Threading.Thread.Sleep(1000);
+                        } else {
+                            Debug.WriteLine($"Failed to close Visual Studio after {maxRetries} attempts");
+                        }
+                    }
+                }
+            } catch(Exception ex) {
+                Debug.Write($"Error closing Visual Studio: {ex.Message}");
+            } finally {
+                if(_vsInstance != null) {
+                    try {
+                        Marshal.ReleaseComObject(_vsInstance);
+                    } catch(Exception ex) {
+                        Debug.WriteLine($"Error releasing COM object: {ex.Message}");
+                    }
+                    _vsInstance = null;
+                }
             }
-            _vsInstance?.Quit();
+
+            //if(_vsInstance?.Solution.IsOpen == true) {
+            //    _vsInstance.ExecuteCommand("File.SaveAll");
+            //    _vsInstance.Solution.Close(true);
+            //}
+            //_vsInstance?.Quit();
         }
 
         internal static bool AddFilesToSolution(string solution, string projectName, string[] files) {
