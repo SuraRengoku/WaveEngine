@@ -15,14 +15,14 @@ namespace WaveEditor.Editors {
         public static ItemsControl CreateFileMenu(Action onMenuClose) {
             var menu = new ItemsControl();
 
-            menu.Items.Add(CreateMenuItem("New Project...", null, "Ctrl+Shift+N", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Open Project...", null, "Ctrl+Shift+O", onMenuClose));
+            menu.Items.Add(CreateMenuItem("New Project...", OnNewProject, "Ctrl+Shift+N", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Open Project...", OnOpenProject, "Ctrl+Shift+O", onMenuClose));
             menu.Items.Add(CreateSeparator());
-            menu.Items.Add(CreateMenuItem("Save", OnSave_Click, "Ctrl+S", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Save All", OnSaveAll_Click, "Ctrl+Shift+S", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Save", OnSave, "Ctrl+S", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Save All", OnSaveAll, "Ctrl+Shift+S", onMenuClose));
             menu.Items.Add(CreateSeparator());
             menu.Items.Add(CreateMenuItem("Close Solution", null, null, onMenuClose));
-            menu.Items.Add(CreateMenuItem("Exit", OnExit_Click, "Alt+F4", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Exit", OnExit, "Alt+F4", onMenuClose));
 
             return menu;
         }
@@ -122,7 +122,20 @@ namespace WaveEditor.Editors {
 
         #region Menu Item Handlers
 
-        private static void OnSave_Click(object sender, RoutedEventArgs e) {
+        private static void OnNewProject(object sender, RoutedEventArgs e) {
+            ProjectBrowserDialog.GotoNewProjectTab = true;
+            GameProject.Project.Current?.Unload();
+            Application.Current.MainWindow.DataContext = null;
+            Application.Current.MainWindow.Close();
+        }
+
+        private static void OnOpenProject(object sender, RoutedEventArgs e) {
+            GameProject.Project.Current?.Unload();
+            Application.Current.MainWindow.DataContext = null;
+            Application.Current.MainWindow.Close();
+        }
+
+        private static void OnSave(object sender, RoutedEventArgs e) {
             var window = Application.Current.MainWindow;
             if(window?.DataContext is GameProject.Project project) {
                 // TODO
@@ -130,12 +143,12 @@ namespace WaveEditor.Editors {
             }
         }
 
-        private static void OnSaveAll_Click(object sender, RoutedEventArgs e) {
-            OnSave_Click(sender, e);
+        private static void OnSaveAll(object sender, RoutedEventArgs e) {
+            OnSave(sender, e);
         }
 
-        private static void OnExit_Click(object sender, RoutedEventArgs e) {
-            Application.Current.Shutdown();
+        private static void OnExit(object sender, RoutedEventArgs e) {
+            Application.Current.MainWindow.Close();
         }
 
         #endregion

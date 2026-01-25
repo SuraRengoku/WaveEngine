@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Policy;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -57,9 +58,9 @@ private:
         private static readonly string _namespace = GetNamespaceFromProjectName();
 
         private static string GetNamespaceFromProjectName() {
-            var projectName = Project.Current.Name;
-            //if (string.IsNullOrEmpty(projectName)) return string.Empty;
-            projectName = projectName.Replace(' ', '_');
+            var projectName = Project.Current.Name.Trim();
+            if (string.IsNullOrEmpty(projectName)) return string.Empty;
+            projectName = Regex.Replace(projectName, @"[^A-Za-z0-9_]", "");
             return projectName;
         }
 
@@ -68,9 +69,10 @@ private:
             var name = scriptName.Text.Trim(); // remove blankspace at the beginning and end part of a string
             var path = scriptPath.Text.Trim();
             string errorMsg = string.Empty;
+            var nameRegex = new Regex(@"^[A-Za-z_][A-Za-z0-9_]*$");
             if(string.IsNullOrEmpty(name)) {
                 errorMsg = "Type in a script name.";
-            } else if(name.IndexOfAny(Path.GetInvalidFileNameChars()) != -1 || name.Any(x => char.IsWhiteSpace(x))) { // no space in name
+            } else if(!nameRegex.IsMatch(name)) { 
                 errorMsg = "Invalid character(s) used in the script name.";
             } else if(string.IsNullOrEmpty(path)) {
                 errorMsg = "Select a valid script folder.";

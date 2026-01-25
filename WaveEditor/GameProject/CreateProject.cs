@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using System.Windows.Documents;
@@ -78,7 +79,7 @@ namespace WaveEditor.GameProject {
             }
         }
 
-        private ObservableCollection<ProjectTemplate> _projectTempaltes = new ObservableCollection<ProjectTemplate>();
+        private readonly ObservableCollection<ProjectTemplate> _projectTempaltes = new ObservableCollection<ProjectTemplate>();
         public ReadOnlyObservableCollection<ProjectTemplate> ProjectTemplates { get; }
 
         private bool ValidateProjectPath() {
@@ -88,11 +89,12 @@ namespace WaveEditor.GameProject {
             }
 
             path += $@"{ProjectName}\";
+            var nameRegex = new Regex(@"^[A-Za-z_][A-Za-z0-9_]*$");
 
             IsValid = false;
             if (string.IsNullOrWhiteSpace(ProjectName.Trim())) {
                 ErrorMsg = "Type in a project name.";
-            } else if (ProjectName.IndexOfAny(Path.GetInvalidFileNameChars()) != -1) {
+            } else if (!nameRegex.IsMatch(ProjectName)) {
                 ErrorMsg = "Invalid character(s) used in project name.";
             } else if (string.IsNullOrWhiteSpace(ProjectPath.Trim())) {
                 ErrorMsg = "Select a valid project folder.";
@@ -149,7 +151,7 @@ namespace WaveEditor.GameProject {
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCSolution")));
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCProject")));
 
-            var engineAPIPath = Path.Combine(MainWindow.WavePath, @"WaveEngine\EngineAPI\");
+            var engineAPIPath = @"(WAVE_ENGINE)WaveEngine\EngineAPI\";
             Debug.Assert(Directory.Exists(engineAPIPath));
 
             var _0 = ProjectName;
@@ -161,7 +163,7 @@ namespace WaveEditor.GameProject {
             File.WriteAllText(Path.GetFullPath(Path.Combine(projectPath, $"{_0}.sln")), solution);
 
             _2 = engineAPIPath;
-            var _3 = MainWindow.WavePath;
+            var _3 = @"(WAVE_ENGINE)";
 
             var project = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCProject"));
             project = string.Format(project, _0, _1, _2, _3);

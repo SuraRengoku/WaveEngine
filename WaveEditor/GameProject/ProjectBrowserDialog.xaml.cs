@@ -21,6 +21,8 @@ namespace WaveEditor.GameProject {
     public partial class ProjectBrowserDialog : Window {
         private readonly CubicEase _easing = new CubicEase() { EasingMode = EasingMode.EaseInOut };
 
+        public static bool GotoNewProjectTab { get; set; }
+
         public ProjectBrowserDialog() {
             InitializeComponent();
             Loaded += OnProjectBrowserDialogLoaded;
@@ -28,11 +30,14 @@ namespace WaveEditor.GameProject {
 
         private void OnProjectBrowserDialogLoaded(object sender, RoutedEventArgs e) {
             Loaded -= OnProjectBrowserDialogLoaded;
-            if(!OpenProject.Projects.Any()) {
-                openProjectButton.IsEnabled = false;
-                openProjectView.Visibility = Visibility.Hidden;
+            if(!OpenProject.Projects.Any() || GotoNewProjectTab) {
+                if(!GotoNewProjectTab) {
+                    openProjectButton.IsEnabled = false;
+                    openProjectView.Visibility = Visibility.Hidden;
+                }
                 OnToggleButton_Click(createProjectButton, new RoutedEventArgs());
             }
+            GotoNewProjectTab = false;
         }
 
         private void AnimateToOpenProject() {

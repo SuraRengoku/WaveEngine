@@ -18,16 +18,10 @@ using WaveEditor.GameDev;
 using WaveEditor.Utilities;
 
 namespace WaveEditor.GameProject {
-    enum BuildConfiguration {
-        Debug,
-        DebugEditor,
-        Release,
-        ReleaseEditor,
-    }
 
     [DataContract(Name = "Game")]
     class Project : ViewModelBase{
-        public static string Extension { get; } = ".wave";
+        public static string Extension => ".wave";
         [DataMember]
         public string Name { get; private set; } = "New Project";
         [DataMember]
@@ -37,8 +31,6 @@ namespace WaveEditor.GameProject {
         public string Solution => $@"{Path}{Name}.sln";
 
         public string ContentPath => $@"{Path}Content\";
-
-        private static readonly string[] _buildConfigurationNames = new string[] { "Debug", "DebugEditor", "Release", "ReleaseEditor" };
 
         private int _buildConfig;
         [DataMember]
@@ -53,12 +45,12 @@ namespace WaveEditor.GameProject {
         }
 
         public BuildConfiguration StandAloneBuildConfig => BuildConfig == 0 ? BuildConfiguration.Debug : BuildConfiguration.Release;
-        public BuildConfiguration DllBuildConfig => BuildConfig == 0 ? BuildConfiguration.DebugEditor : BuildConfiguration.ReleaseEditor;
+        public BuildConfiguration DLLBuildConfig => BuildConfig == 0 ? BuildConfiguration.DebugEditor : BuildConfiguration.ReleaseEditor;
 
         private string[] _availableScripts;
         public string[] AvailableScripts {
             get => _availableScripts;
-            set {
+            private set {
                 if(_availableScripts != value) {
                     _availableScripts = value;
                     OnPropertyChanged(nameof(AvailableScripts));
@@ -66,8 +58,8 @@ namespace WaveEditor.GameProject {
             }
         }
 
-        [DataMember(Name = "Scenes")]
-        private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene> ();
+        [DataMember(Name = nameof(Scenes))]
+        private readonly ObservableCollection<Scene> _scenes = new ObservableCollection<Scene> ();
         public ReadOnlyObservableCollection<Scene> Scenes {
             get;
             private set;
@@ -84,7 +76,7 @@ namespace WaveEditor.GameProject {
             }
         }
 
-        public static Project Current => Application.Current.MainWindow.DataContext as Project;
+        public static Project Current => Application.Current.MainWindow?.DataContext as Project;
         public static UndoRedo UndoRedo { get; } = new UndoRedo();
 
         public ICommand UndoCommand { get; private set; }
@@ -123,7 +115,7 @@ namespace WaveEditor.GameProject {
             UndoCommand = new RelayCommand<object>(x => UndoRedo.Undo(), x => UndoRedo.UndoList.Any());
             RedoCommand = new RelayCommand<object>(x => UndoRedo.Redo(), x => UndoRedo.RedoList.Any());
             SaveCommand = new RelayCommand<object>(x => Save(this));
-            BuildCommand = new RelayCommand<bool>(async x => await BuildGameCodeDll(x), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+            BuildCommand = new RelayCommand<bool>(async x => await BuildGameCodeDLL(x), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
             //BuildCommand = new RelayCommand<bool>(x => {
             //    _ = Task.Run(async () => {
             //        try {
@@ -160,8 +152,6 @@ namespace WaveEditor.GameProject {
             OnPropertyChanged(nameof(DebugStopCommand));
         }
 
-        private static string GetConfigurationName(BuildConfiguration config) => _buildConfigurationNames[(int)config];
-
         private void AddScene(string sceneName) {
             Debug.Assert(!string.IsNullOrEmpty(sceneName.Trim()));
             _scenes.Add(new Scene(this, sceneName));
@@ -178,9 +168,10 @@ namespace WaveEditor.GameProject {
         }
 
         public void Unload() {
-            UnloadGameCodeDll();
+            UnloadGameCodeDLL();
             VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
+            Logger.Clear();
         }
 
         public static void Save(Project project) {
@@ -202,7 +193,7 @@ namespace WaveEditor.GameProject {
          */
 
         private void SaveToBinary() {
-            var configName = GetConfigurationName(StandAloneBuildConfig);
+            var configName = VisualStudio.GetConfigurationName(StandAloneBuildConfig);
             var bin = $@"{Path}x64\{configName}\game.bin";
 
             using (var bw = new BinaryWriter(File.Open(bin, FileMode.Create, FileAccess.Write))) {
@@ -219,24 +210,23 @@ namespace WaveEditor.GameProject {
         }
 
         private async Task RunGame(bool debug) {
-            var configName = GetConfigurationName(StandAloneBuildConfig);
-            await Task.Run(() => VisualStudio.BuildSolution(this, configName, debug));
+            await Task.Run(() => VisualStudio.BuildSolution(this, StandAloneBuildConfig, debug));
             if(VisualStudio.BuildSucceeded) {
                 SaveToBinary();
-                await Task.Run(() => VisualStudio.Run(this, configName, debug));
+                await Task.Run(() => VisualStudio.Run(this, StandAloneBuildConfig, debug));
             }
         }
 
         private async Task StopGame() => await Task.Run(() => VisualStudio.Stop());
 
-        private async Task BuildGameCodeDll(bool showWindow = true) {
+        private async Task BuildGameCodeDLL(bool showWindow = true) {
             try {
-                UnloadGameCodeDll();
+                UnloadGameCodeDLL();
                 // build the game code dll
-                await Task.Run(() => VisualStudio.BuildSolution(this, GetConfigurationName(DllBuildConfig), showWindow));
+                await Task.Run(() => VisualStudio.BuildSolution(this, DLLBuildConfig, showWindow));
                 if (VisualStudio.BuildSucceeded) {
                     // if build succeeded
-                    LoadGameCodeDll();
+                    LoadGameCodeDLL();
                 }
             } catch(Exception ex) {
                 Debug.WriteLine(ex.Message);
@@ -244,8 +234,8 @@ namespace WaveEditor.GameProject {
             }
         }
 
-        private void LoadGameCodeDll() {
-            var configName = GetConfigurationName(DllBuildConfig);
+        private void LoadGameCodeDLL() {
+            var configName = VisualStudio.GetConfigurationName(DLLBuildConfig);
             var dll = $@"{Path}x64\{configName}\{Name}.dll";
             if(File.Exists(dll) && EngineAPI.LoadGameCodeDll(dll) != 0) {
                 AvailableScripts = EngineAPI.GetScriptNames();
@@ -255,7 +245,7 @@ namespace WaveEditor.GameProject {
                 Logger.Log(MessageType.Warning, "Failed to load game code DLL file. Try to build the project first.");
             }
         }
-        private void UnloadGameCodeDll() {
+        private void UnloadGameCodeDLL() {
             ActiveScene.GameEntities.Where(x => x.GetComponent<Script>() != null).ToList().ForEach(x => x.IsActive = false);
             if(EngineAPI.UnloadGameCodeDll() != 0) {
                 Logger.Log(MessageType.Info, "Game Code DLL unloaded.");
@@ -270,9 +260,10 @@ namespace WaveEditor.GameProject {
                 Scenes = new ReadOnlyObservableCollection<Scene>(_scenes);
                 OnPropertyChanged(nameof(Scenes));
             }
-            ActiveScene = Scenes.FirstOrDefault(x => x.IsActive);
+            ActiveScene = _scenes.FirstOrDefault(x => x.IsActive);
             Debug.Assert(ActiveScene != null);
-            await BuildGameCodeDll(false);
+
+            await BuildGameCodeDLL(false);
 
             SetCommands();
         }
@@ -281,7 +272,7 @@ namespace WaveEditor.GameProject {
             Name = name;
             Path = path;
 
-            //_scenes.Add(new Scene(this, "Default Scene"));
+            Debug.Assert(File.Exists((Path + Name + Extension).ToLower()));
             OnDeserialized(new StreamingContext());
         }
     }
