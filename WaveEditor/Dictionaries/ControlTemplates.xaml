@@ -2,7 +2,8 @@
                     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:WaveEditor.Dictionaries"
-                    xmlns:ctlr="clr-namespace:WaveEditor.Utilities.Controls">
+                    xmlns:ctlr="clr-namespace:WaveEditor.Utilities.Controls"
+                    xmlns:editors="clr-namespace:WaveEditor.Editors">
     <Style TargetType="{x:Type TextBlock}" x:Key="LightTextBlockStyle">
         <Setter Property="Foreground" Value="{StaticResource Editor.FontBrush}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -730,57 +731,65 @@
                                                 Margin="10, 0, 0, 0"
                                                 VerticalAlignment="Center"
                                                 WindowChrome.IsHitTestVisibleInChrome="True" -->
-
-                                <Button x:Name="File" Click="OnMenu_Button_Click"
+                                
+                                <Button x:Name="File"
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="File"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 2, 0"
                                         Width="Auto"
                                         Background="Transparent"/>
 
-                                <Button x:Name="Edit" Click="OnMenu_Button_Click"
+                                <Button x:Name="Edit" 
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="Edit"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 0, 0"
                                         Width="Auto"
                                         Background="Transparent"/>
                                 
-                                <Button x:Name="View" Click="OnMenu_Button_Click"
+                                <Button x:Name="View" 
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="View"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 0, 0"
                                         Width="Auto"
                                         Background="Transparent"/>
 
-                                <Button x:Name="Project" Click="OnMenu_Button_Click"
+                                <Button x:Name="Project" 
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="Project"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 0, 0"
                                         Width="Auto"
                                         Background="Transparent"/>
 
-                                <Button x:Name="Build" Click="OnMenu_Button_Click"
+                                <Button x:Name="Build" 
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="Build"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 0, 0"
                                         Width="Auto"
                                         Background="Transparent"/>
 
-                                <Button x:Name="Tools" Click="OnMenu_Button_Click"
+                                <Button x:Name="Tools" 
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="Tools"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 0, 0"
                                         Width="Auto"
                                         Background="Transparent"/>
 
-                                <Button x:Name="Analyze" Click="OnMenu_Button_Click"
+                                <Button x:Name="Analyze" 
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="Analyze"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 0, 0"
                                         Width="Auto"
                                         Background="Transparent"/>
 
-                                <Button x:Name="Help" Click="OnMenu_Button_Click"
+                                <Button x:Name="Help" 
+                                        editors:MenuBarBehavior.IsEnabled="True"
                                         Content="Help"
                                         DockPanel.Dock="Left"
                                         Margin="6, 2, 0, 0"

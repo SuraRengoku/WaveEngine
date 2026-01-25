@@ -86,7 +86,7 @@ public:
 		if (FAILED(hr)) return;
 	}
 
-	DISABLE_COPY_AND_MOVE(shaderCompiler);
+	DISABLE_COPY_AND_MOVE(shaderCompiler)
 
 	IDxcBlob* compile(shaderFileInfo info, std::filesystem::path full_path) {
 		assert(_compiler && _utils && _include_handler);
