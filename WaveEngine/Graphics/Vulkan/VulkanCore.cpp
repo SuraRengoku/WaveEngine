@@ -93,7 +93,6 @@ struct ShaderConstants {
 };
 struct perFrameResources {
 	vulkanBufferMemory	uniformBuffer;
-	VkDeviceMemory		uniformBufferMemory;
 	void*				uniformBufferMapped;
 	
 	vulkanDescriptorSetHandle descriptorSet{ VK_NULL_HANDLE };
