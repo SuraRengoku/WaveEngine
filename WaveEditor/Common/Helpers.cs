@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -36,6 +37,19 @@ namespace WaveEditor {
 
             return sb.ToString(0, length);
         }
+
+        public static bool IsDirectory(string path) {
+            try {
+                return File.GetAttributes(path).HasFlag(FileAttributes.Directory);
+            } catch(Exception ex) {
+                Debug.WriteLine(ex.Message);
+            }
+            return false;
+        }
+
+        public static bool IsDirectory(this FileInfo info) => info.Attributes.HasFlag(FileAttributes.Directory);
+
+        public static bool IsOlder(this DateTime date, DateTime other) => date < other;
 
         public static string SanitizeFileName(string name) {
             var path = new StringBuilder(name.Substring(0, name.LastIndexOf(Path.DirectorySeparatorChar) + 1));

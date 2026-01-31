@@ -340,7 +340,9 @@ namespace WaveEditor.Content {
                 foreach(var lodGroup in _lodGroups) {
                     Debug.Assert(lodGroup.LODs.Any());
                     // use the name of most detailed LOD for file name
-                    var meshFileName = ContentHelper.SanitizeFileName(path + fileName + "_" + lodGroup.LODs[0].Name + AssetFileExtension);
+                    var meshFileName = ContentHelper.SanitizeFileName(_lodGroups.Count > 1 ?
+                        path + fileName + "_" + lodGroup.LODs[0].Name + AssetFileExtension :
+                        path + fileName + AssetFileExtension);
                     // make a different Guid for each new asset file
                     Guid = Guid.NewGuid();
                     byte[] data = null;

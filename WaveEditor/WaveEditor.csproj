@@ -26,6 +26,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="Resources\ContentBrowser\FolderLarge.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\ContentBrowser\FolderSmall.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\ContentBrowser\ListView.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\ContentBrowser\TileView.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Resources\PrimitiveMeshView\awesomeface.png" />
   </ItemGroup>
 

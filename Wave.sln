@@ -30,10 +30,10 @@ Global
 		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.Debug|x64.ActiveCfg = DebugEditor|x64
 		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.Debug|x64.Build.0 = DebugEditor|x64
 		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.DebugEditor|x64.ActiveCfg = DebugEditor|x64
+		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.DebugEditor|x64.Build.0 = DebugEditor|x64
 		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.Release|x64.ActiveCfg = ReleaseEditor|x64
 		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.ReleaseEditor|x64.ActiveCfg = ReleaseEditor|x64
 		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.ReleaseEditor|x64.Build.0 = ReleaseEditor|x64
-		{A4ED2A92-EA65-487A-B75B-4C90BCA8A22C}.DebugEditor|x64.Build.0 = DebugEditor|x64
 		{85B68A87-1E62-40BE-874B-9BFFDA95DAF5}.Debug|x64.ActiveCfg = Debug|x64
 		{85B68A87-1E62-40BE-874B-9BFFDA95DAF5}.Debug|x64.Build.0 = Debug|x64
 		{85B68A87-1E62-40BE-874B-9BFFDA95DAF5}.DebugEditor|x64.ActiveCfg = DebugEditor|x64

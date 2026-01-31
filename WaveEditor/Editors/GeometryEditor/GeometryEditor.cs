@@ -45,8 +45,8 @@ namespace WaveEditor.Editors {
     }
 
     class MeshRenderer : ViewModelBase {
-        public ObservableCollection<MeshRendererVertexData> Meshes { get; } = new ObservableCollection<MeshRendererVertexData>();
 
+        public ObservableCollection<MeshRendererVertexData> Meshes { get; } = new ObservableCollection<MeshRendererVertexData>();
         private Vector3D _cameraDirection = new Vector3D(0, 0, -10);
         public Vector3D CameraDirection {
             get => _cameraDirection;

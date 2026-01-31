@@ -27,9 +27,9 @@ namespace WaveEditor.Utilities {
 
     class DelayEventTimerArgs : EventArgs {
         public bool RepeatEvent { get; set; }
-        public object Data { get; set; }
+        public IEnumerable<object> Data { get; set; }
 
-        public DelayEventTimerArgs(object data) {
+        public DelayEventTimerArgs(IEnumerable<object> data) {
             Data = data;
         }
     }
@@ -37,8 +37,8 @@ namespace WaveEditor.Utilities {
     class DelayEventTimer {
         private readonly DispatcherTimer _timer;
         private readonly TimeSpan _delay;
+        private readonly List<object> _data = new List<object>();
         private DateTime _lastEventTime = DateTime.Now;
-        private object _data;
 
         public event EventHandler<DelayEventTimerArgs> Triggered;
 
@@ -46,7 +46,9 @@ namespace WaveEditor.Utilities {
         // and this function kept being called unless the left mouse button is released.
         // Thus, the _lastEventTime is refreshed all the time unless the left mouse button is released.
         public void Trigger(object data = null) {
-            _data = data;
+            if(data != null) {
+                _data.Add(data);
+            }
             _lastEventTime = DateTime.Now; 
             _timer.IsEnabled = true; // launch the timer
         }
@@ -60,6 +62,9 @@ namespace WaveEditor.Utilities {
             if ((DateTime.Now - _lastEventTime) < _delay) return;
             var eventArgs = new DelayEventTimerArgs(_data);
             Triggered?.Invoke(this, eventArgs); // set eventArgs.RepeatEvent to whether the mouse button is still pressed
+            if(!eventArgs.RepeatEvent) {
+                _data.Clear();
+            }
             _timer.IsEnabled = eventArgs.RepeatEvent; // false -> stop ticking
         }
 

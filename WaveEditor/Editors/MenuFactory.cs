@@ -17,11 +17,11 @@ namespace WaveEditor.Editors {
 
             menu.Items.Add(CreateMenuItem("New Project...", OnNewProject, "Ctrl+Shift+N", onMenuClose));
             menu.Items.Add(CreateMenuItem("Open Project...", OnOpenProject, "Ctrl+Shift+O", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Close Project", OnCloseProject, "Ctrl+Shift+Q", onMenuClose));
             menu.Items.Add(CreateSeparator());
             menu.Items.Add(CreateMenuItem("Save", OnSave, "Ctrl+S", onMenuClose));
             menu.Items.Add(CreateMenuItem("Save All", OnSaveAll, "Ctrl+Shift+S", onMenuClose));
             menu.Items.Add(CreateSeparator());
-            menu.Items.Add(CreateMenuItem("Close Solution", null, null, onMenuClose));
             menu.Items.Add(CreateMenuItem("Exit", OnExit, "Alt+F4", onMenuClose));
 
             return menu;
@@ -30,13 +30,13 @@ namespace WaveEditor.Editors {
         public static ItemsControl CreateEditMenu(Action onMenuClose) {
             var menu = new ItemsControl();
 
-            menu.Items.Add(CreateMenuItem("Undo", null, "Ctrl+Z", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Redo", null, "Ctrl+Y", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Undo", OnUndo, "Ctrl+Z", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Redo", OnRedo, "Ctrl+Y", onMenuClose));
             menu.Items.Add(CreateSeparator());
-            menu.Items.Add(CreateMenuItem("Cut", null, "Ctrl+X", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Copy", null, "Ctrl+C", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Paste", null, "Ctrl+V", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Delete", null, "Del", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Cut", OnCut, "Ctrl+X", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Copy", OnCopy, "Ctrl+C", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Paste", OnPaste, "Ctrl+V", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Delete", OnDelete, "Del", onMenuClose));
 
             return menu;
         }
@@ -61,9 +61,9 @@ namespace WaveEditor.Editors {
         public static ItemsControl CreateBuildMenu(Action onMenuClose) {
             var menu = new ItemsControl();
 
-            menu.Items.Add(CreateMenuItem("Build Solution", null, "F7", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Rebuild Solution", null, "Ctrl+Shift+B", onMenuClose));
-            menu.Items.Add(CreateMenuItem("Clean Solution", null, null, onMenuClose));
+            menu.Items.Add(CreateMenuItem("Build Project", OnBuild, "Ctrl+B", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Rebuild Project", OnRebuild, "Ctrl+Shift+B", onMenuClose));
+            menu.Items.Add(CreateMenuItem("Clean Project", OnClean, null, onMenuClose));
 
             return menu;
         }
@@ -136,21 +136,57 @@ namespace WaveEditor.Editors {
         }
 
         private static void OnSave(object sender, RoutedEventArgs e) {
-            var window = Application.Current.MainWindow;
-            if(window?.DataContext is GameProject.Project project) {
-                // TODO
-                Project.Save(project);
-            }
+            Project.Current?.SaveCommand.Execute(sender);
         }
 
         private static void OnSaveAll(object sender, RoutedEventArgs e) {
             OnSave(sender, e);
         }
 
+        private static void OnCloseProject(object sender, RoutedEventArgs e) {
+
+        }
+
         private static void OnExit(object sender, RoutedEventArgs e) {
             Application.Current.MainWindow.Close();
         }
 
+        private static void OnUndo(object sender, RoutedEventArgs e) {
+            Project.Current?.UndoCommand.Execute(sender);
+        }
+
+        private static void OnRedo(object sender, RoutedEventArgs e) {
+            Project.Current?.RedoCommand.Execute(sender);
+        }
+
+        private static void OnCut(object sender, RoutedEventArgs e) {
+
+        }
+
+        private static void OnCopy(object sender, RoutedEventArgs e) {
+
+        }
+
+        private static void OnPaste(object sender, RoutedEventArgs e) {
+
+        }
+
+        private static void OnDelete(object sender, RoutedEventArgs e) {
+
+        }
+
+        private static void OnBuild(object sender, RoutedEventArgs e) {
+            Project.Current?.BuildCommand.Execute(sender);
+        }
+
+        private static void OnClean(object sender, RoutedEventArgs e) {
+
+        }
+
+        private static void OnRebuild(object sender, RoutedEventArgs e) {
+            OnClean(sender, e);
+            OnBuild(sender, e);
+        }
         #endregion
     }
 }

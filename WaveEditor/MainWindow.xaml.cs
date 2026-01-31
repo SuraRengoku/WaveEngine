@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -9,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
+using WaveEditor.Content;
 using WaveEditor.GameProject;
 
 namespace WaveEditor {
@@ -62,11 +64,14 @@ namespace WaveEditor {
 
         private void OpenProjectBrowserDialog() {
             var projectBrowser = new ProjectBrowserDialog();
-            if(projectBrowser.ShowDialog() == false || projectBrowser.DataContext == null) {
+            if (projectBrowser.ShowDialog() == false || projectBrowser.DataContext == null) {
                 Application.Current.Shutdown();
             } else {
                 Project.Current?.Unload();
-                DataContext = projectBrowser.DataContext;
+                var project = projectBrowser.DataContext as Project;
+                Debug.Assert(project != null);
+                ContentWatcher.Reset(project.ContentPath, project.Path);
+                DataContext = project;
             }
         }
     }

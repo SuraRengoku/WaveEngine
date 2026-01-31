@@ -283,6 +283,7 @@ public:
 	}
 
 	[[nodiscard]] constexpr T* end() {
+		assert(!(_data == nullptr && _size > 0));
 		return std::addressof(_data[_size]); // invalid
 	}
 
@@ -311,6 +312,7 @@ public:
 	}
 
 	[[nodiscard]] constexpr const T* end() const {
+		assert(!(_data == nullptr && _size > 0));
 		return std::addressof(_data[_size]); // invalid
 	}
 
