@@ -30,6 +30,9 @@ struct mesh {
 	UTL::vector<MATH::v4>						tangents;
 
 	UTL::vector<UTL::vector<MATH::v2>>			uv_sets; // a list of uv coordinates, we could in theory different texture on a single point
+	UTL::vector<u32>							material_indices;
+	UTL::vector<u32>							material_used;
+
 	UTL::vector<u32>							raw_indices;
 
 	// Intermediate data

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -69,6 +69,7 @@ private:
             var path = scriptPath.Text.Trim();
             string errorMsg = string.Empty;
             var nameRegex = new Regex(@"^[A-Za-z_][A-Za-z0-9_]*$");
+
             if(string.IsNullOrEmpty(name)) {
                 errorMsg = "Type in a script name.";
             } else if(!nameRegex.IsMatch(name)) { 

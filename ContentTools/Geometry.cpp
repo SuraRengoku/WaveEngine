@@ -8,7 +8,7 @@ using namespace MATH;
 using namespace DirectX;
 
 void recalculate_normals(mesh& m) {
-	const u32 num_indices{ (u32)m.raw_indices.size() };
+	const u32 num_indices{ static_cast<u32>(m.raw_indices.size()) };
 	m.normals.resize(num_indices);
 
 	for (u32 i{ 0 }; i < num_indices; ++i) {
@@ -42,8 +42,8 @@ void process_normals(mesh& m, f32 smoothing_angle) {
 	const f32 cos_alpha{ XMScalarCos(pi - smoothing_angle * pi / 180.0f) }; 
 	const bool is_hard_edge{ XMScalarNearEqual(smoothing_angle, 180.0f, epsilon) }; // cos_angle = 1 -> complete hard mode
 	const bool is_soft_edge{ XMScalarNearEqual(smoothing_angle, 0.0f, epsilon) }; // cos_angle = -1 -> complete smooth mode
-	const u32 num_indices{ (u32)m.raw_indices.size() };
-	const u32 num_vertices{ (u32)m.positions.size() };
+	const u32 num_indices{ static_cast<u32>(m.raw_indices.size()) };
+	const u32 num_vertices{ static_cast<u32>(m.positions.size()) };
 	assert(num_indices && num_vertices);
 
 	m.indices.resize(num_indices);
@@ -56,11 +56,11 @@ void process_normals(mesh& m, f32 smoothing_angle) {
 
 	for (u32 i{ 0 }; i < num_vertices; ++i) { // for each vertex
 		auto& refs{ idx_ref[i] };
-		u32 num_refs{ (u32)refs.size() };
+		u32 num_refs{ static_cast<u32>(refs.size()) };
 		for (u32 j{ 0 }; j < num_refs; ++j) { 
 			// for each appearing index of a vertex in the raw_indices vector 
 			// -> for each appearing of a vertex in a single triangle
-			m.indices[refs[j]] = (u32)m.vertices.size();  
+			m.indices[refs[j]] = static_cast<u32>(m.vertices.size());  
 			vertex& v{ m.vertices.emplace_back() }; // default constructor
 			v.position = m.positions[m.raw_indices[refs[j]]]; // use the original position information
 
@@ -72,7 +72,7 @@ void process_normals(mesh& m, f32 smoothing_angle) {
 					XMVECTOR n2{ XMLoadFloat3(&m.normals[refs[k]]) }; 
 					if (!is_soft_edge) { 
 						// calculate the cos value of in-between angle
-						// NOTE: since n1 is picked outside the loop iteration and 
+						// NOTE: since n1 is picked outside the loop iteration, and 
 						//		 it can possibly be changed int the loop iteration, 
 						//		 we have to calculate the reciprocal length of it explicitly.
 						//		 n2 is picked in the loop iteration so it can only be normalized.
@@ -85,7 +85,7 @@ void process_normals(mesh& m, f32 smoothing_angle) {
 						m.indices[refs[k]] = m.indices[refs[j]]; // share vertex
 						refs.erase(refs.begin() + k); // if shared, remove the second ref so we don't have to count it in the following computing
 						--num_refs; // influence the outer j loop
-						--k; // k-idx ref was removed, influenc the inner loop
+						--k; // k-idx ref was removed, influence the inner loop
 					}
 				}
 			}
@@ -100,8 +100,8 @@ void process_uvs(mesh& m) {
 	UTL::vector<u32> old_indices(m.indices.size());
 	old_indices.swap(m.indices);
 
-	const u32 num_vertices{ (u32)old_vertices.size() };
-	const u32 num_indices{ (u32)old_indices.size() };
+	const u32 num_vertices{ static_cast<u32>(old_vertices.size()) };
+	const u32 num_indices{ static_cast<u32>(old_indices.size()) };
 	assert(num_indices && num_vertices);
 
 
@@ -111,9 +111,9 @@ void process_uvs(mesh& m) {
 
 	for (u32 i{ 0 }; i < num_vertices; ++i) {
 		auto& refs{ idx_ref[i] };
-		u32 num_refs{ (u32)refs.size() };
+		u32 num_refs{ static_cast<u32>(refs.size()) };
 		for (u32 j{ 0 }; j < num_refs; ++j) {
-			m.indices[refs[j]] = (u32)m.vertices.size();
+			m.indices[refs[j]] = static_cast<u32>(m.vertices.size());
 			vertex& v{ old_vertices[old_indices[refs[j]]] };
 			v.uv = m.uv_sets[0][refs[j]];
 			m.vertices.emplace_back(v);
@@ -127,13 +127,13 @@ void process_uvs(mesh& m) {
 					--k;
 				}
 			}
-			// we have already add the new vertex into vertices, look back
+			// we have already added the new vertex into vertices, look back
 		}
 	}
 }
 
 void pack_vertices_static(mesh& m) {
-	const u32 num_vertices{ (u32)m.vertices.size() };
+	const u32 num_vertices{ static_cast<u32>(m.vertices.size()) };
 	assert(num_vertices);
 	m.pack_vertices_static.reserve(num_vertices);
 
@@ -220,7 +220,7 @@ void pack_mesh_data(const mesh& mesh, u8* const buffer, u64& at) {
 	u32 s{ 0 };
 
 	// mesh name length and itself
-	s = (u32)mesh.name.size();
+	s = static_cast<u32>(mesh.name.size());
 	memcpy(&buffer[at], &s, su32); at += su32;
 	memcpy(&buffer[at], mesh.name.c_str(), s); at += s;
 	// lod id
@@ -231,15 +231,15 @@ void pack_mesh_data(const mesh& mesh, u8* const buffer, u64& at) {
 	s = vertex_size;
 	memcpy(&buffer[at], &s, su32); at += su32;
 	// number of vertices
-	const u32 num_vertices{ (u32)mesh.vertices.size() };
+	const u32 num_vertices{ static_cast<u32>(mesh.vertices.size()) };
 	s = num_vertices;
 	memcpy(&buffer[at], &s, su32); at += su32;
 	// index size (16 bit or 32 bit)
-	const u32 index_size{ (num_vertices < (1 << 16)) ? sizeof(u16) : sizeof(u32) };
+	const u32 index_size{ (num_vertices < (1 << 16)) ? static_cast<u32>(sizeof(u16)) : static_cast<u32>(sizeof(u32)) };
 	s = index_size;
 	memcpy(&buffer[at], &s, su32); at += su32;
 	// number of indices
-	const u32 num_indices{ (u32)mesh.indices.size() };
+	const u32 num_indices{ static_cast<u32>(mesh.indices.size()) };
 	s = num_indices;
 	memcpy(&buffer[at], &s, su32); at += su32;
 	// LOD threshold
@@ -255,15 +255,87 @@ void pack_mesh_data(const mesh& mesh, u8* const buffer, u64& at) {
 	if (index_size == sizeof(u16)) {
 		indices.resize(num_indices);
 		for (u32 i{ 0 }; i < num_indices; ++i)
-			indices[i] = (u16)mesh.indices[i];
+			indices[i] = static_cast<u16>(mesh.indices[i]);
 		data = (void*)indices.data();
 	}
 	memcpy(&buffer[at], data, s); at += s;
 }
 
+bool split_meshes_by_material(u32 material_index, const mesh& m, mesh& submesh) {
+	submesh.name = m.name;
+	submesh.lod_threshold = m.lod_threshold;
+	submesh.lod_id = m.lod_id;
+	submesh.material_used.emplace_back(material_index);
+	submesh.uv_sets.resize(m.uv_sets.size());
+
+	const u32 num_polys{ static_cast<u32>(m.raw_indices.size()) / 3 };
+	UTL::vector<u32> vertex_ref(m.positions.size(), u32_invalid_id);
+
+	for (u32 i{0}; i < num_polys; ++i) {
+		const u32 mtl_idx{ m.material_indices[i] };
+		if (mtl_idx != material_index) continue;
+
+		const u32 index{ i * 3 };
+		for (u32 j = index; j < index + 3; ++j) {
+
+			const u32 v_idx{ m.raw_indices[j] };
+
+			if (vertex_ref[v_idx] != u32_invalid_id) {
+				submesh.raw_indices.emplace_back(vertex_ref[v_idx]);
+			} else {
+				submesh.raw_indices.emplace_back(static_cast<u32>(submesh.positions.size()));
+				vertex_ref[v_idx] = submesh.raw_indices.back();
+				submesh.positions.emplace_back(m.positions[v_idx]);
+			}
+
+			if (m.normals.size()) {
+				submesh.normals.emplace_back(m.normals[j]);
+			} 
+
+			if (m.tangents.size()) {
+				submesh.tangents.emplace_back(m.tangents[j]);
+			}
+
+			for (u32 k{0}; k < m.uv_sets.size(); ++k) {
+				if (m.uv_sets[k].size()) {
+					submesh.uv_sets[k].emplace_back(m.uv_sets[k][j]);
+				}
+			}
+		}
+	}
+
+	assert((submesh.raw_indices.size() % 3) == 0);
+	return !submesh.raw_indices.empty();
+}
+
+void split_meshes_by_material(scene& scene) {
+	for (auto& lod : scene.lod_groups) {
+		UTL::vector<mesh> new_meshes;
+
+		for (auto& m : lod.meshes) {
+			// iF more than one material is used in this mesh
+			// then split it into submeshes.
+			const u32 num_materials{ static_cast<u32>(m.material_used.size()) };
+			if (num_materials > 1) {
+				for (u32 i{0}; i < num_materials; ++i) {
+					mesh submesh{};
+					if (split_meshes_by_material(m.material_used[i], m, submesh)) {
+						new_meshes.emplace_back(submesh);
+					}
+				}
+			} else {
+				new_meshes.emplace_back(m);
+			}
+		} 
+		new_meshes.swap(lod.meshes);
+	}
+}
+
 }
 
 void process_scene(scene& scene, const geometry_import_settings& settings) {
+	split_meshes_by_material(scene);
+
 	for (auto& lod : scene.lod_groups) {
 		for (auto& m : lod.meshes) {
 			process_vertices(m, settings);
@@ -274,7 +346,7 @@ void process_scene(scene& scene, const geometry_import_settings& settings) {
 void pack_data(const scene& scene, scene_data& data) {
 	constexpr u64 su32{ sizeof(u32) };
 	const u64 scene_size{ get_scene_size(scene) };
-	data.buffer_size = (u32)scene_size;
+	data.buffer_size = static_cast<u32>(scene_size);
 #ifdef _WIN32
 	data.buffer = (u8*)alloc_interop_memory<>(scene_size);
 #else
@@ -287,20 +359,20 @@ void pack_data(const scene& scene, scene_data& data) {
 	u32 s{ 0 }; // tmp buffer
 
 	// scene name length and name itself
-	s = (u32)scene.name.size();
+	s = static_cast<u32>(scene.name.size());
 	memcpy(&buffer[at], &s, su32); at += su32;
 	memcpy(&buffer[at], scene.name.c_str(), s); at += s;
 	// number of LODs
-	s = (u32)scene.lod_groups.size();
+	s = static_cast<u32>(scene.lod_groups.size());
 	memcpy(&buffer[at], &s, su32); at += su32;
 
 	for (auto& lod : scene.lod_groups) {
 		// LOD name length and itself
-		s = (u32)lod.name.size();
+		s = static_cast<u32>(lod.name.size());
 		memcpy(&buffer[at], &s, su32); at += su32;
 		memcpy(&buffer[at], lod.name.c_str(), s); at += s;
 		// number of meshes
-		s = (u32)lod.meshes.size();
+		s = static_cast<u32>(lod.meshes.size());
 		memcpy(&buffer[at], &s, su32); at += su32;
 
 		for (auto& mesh : lod.meshes) {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -151,7 +151,7 @@ namespace WaveEditor.GameProject {
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCSolution")));
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCProject")));
 
-            var engineAPIPath = @"(WAVE_ENGINE)WaveEngine\EngineAPI\";
+            var engineAPIPath = Path.Combine(MainWindow.WavePath, @"WaveEngine\EngineAPI\");
             Debug.Assert(Directory.Exists(engineAPIPath));
 
             var _0 = ProjectName;
@@ -163,7 +163,7 @@ namespace WaveEditor.GameProject {
             File.WriteAllText(Path.GetFullPath(Path.Combine(projectPath, $"{_0}.sln")), solution);
 
             _2 = engineAPIPath;
-            var _3 = @"(WAVE_ENGINE)";
+            var _3 = MainWindow.WavePath;
 
             var project = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCProject"));
             project = string.Format(project, _0, _1, _2, _3);

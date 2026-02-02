@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -12,6 +12,8 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using WaveEditor.Utilities;
+using WaveEditor.GameProject;
+using WaveEditor.DLLWrappers;
 
 namespace WaveEditor.Content {
     enum PrimitiveMeshType {
@@ -198,16 +200,27 @@ namespace WaveEditor.Content {
             writer.Write(ImportEmbeddedTextures);
             writer.Write(ImportAnimations);
         }
+
+        public void FromBinary(BinaryReader reader) {
+            CalculateNormals = reader.ReadBoolean();
+            CalculateTangents = reader.ReadBoolean();
+            SmoothingAngle = reader.ReadSingle();
+            ReserveHandedness = reader.ReadBoolean();
+            ImportEmbeddedTextures = reader.ReadBoolean();
+            ImportAnimations = reader.ReadBoolean();
+        }
     }
 
     class Geometry : Asset {
+        private readonly object _lock = new object();
+
         private readonly List<LODGroup> _lodGroups = new List<LODGroup>();
 
         public GeometryImportSettings ImportSettings { get; } = new GeometryImportSettings();
 
         public LODGroup GetLODGroup(int lodGroup = 0) {
             Debug.Assert(lodGroup >= 0 && lodGroup < _lodGroups.Count);
-            return _lodGroups.Any() ? _lodGroups[lodGroup] : null;
+            return (lodGroup < _lodGroups.Count) ? _lodGroups[lodGroup] : null;
         }    
 
         public void FromRawData(byte[] data) {
@@ -294,6 +307,41 @@ namespace WaveEditor.Content {
         }
 
 
+        public override void Import(string file) {
+            Debug.Assert(File.Exists(file));
+            Debug.Assert(!string.IsNullOrEmpty(FullPath));
+            var ext = Path.GetExtension(file).ToLower();
+
+            SourcePath = file;
+
+            try {
+                if(ext == ".fbx") {
+                    ImportFbx(file);
+                }
+            } catch(Exception ex) {
+                Debug.WriteLine(ex.Message);
+                var msg = $"Failed to read {file} for import.";
+                Debug.WriteLine(msg);
+                Logger.Log(MessageType.Error, msg);
+            }
+        }
+
+        private void ImportFbx(string file) {
+            Logger.Log(MessageType.Info, $"Importing FBX file {file}");
+            var tempPath = Application.Current.Dispatcher.Invoke(() => Project.Current.TempFolder);
+            if (string.IsNullOrEmpty(tempPath)) return;
+
+            lock(_lock) {
+                if (!Directory.Exists(tempPath)) Directory.CreateDirectory(tempPath);
+            }
+
+            var tempFile = $"{tempPath}{ContentHelper.GetRandomString()}.fbx";
+            File.Copy(file, tempFile, true);
+            ContentToolsAPI.ImportFbx(tempFile, this);
+
+            var fileName = Path.GetFileName(file);
+        }
+
         // ┌─────────────────────────────────┐
         // │  Header(WriteAssetFileHeader)   │  ← asset meta data
         // ├─────────────────────────────────┤
@@ -343,8 +391,9 @@ namespace WaveEditor.Content {
                     var meshFileName = ContentHelper.SanitizeFileName(_lodGroups.Count > 1 ?
                         path + fileName + "_" + lodGroup.LODs[0].Name + AssetFileExtension :
                         path + fileName + AssetFileExtension);
-                    // make a different Guid for each new asset file
-                    Guid = Guid.NewGuid();
+                    // make a different Guid for each new asset file,
+                    // but if a geometry asset file with the same name already exists then we use its guid instead.
+                    Guid = TryGetAssetInfo(meshFileName) is AssetInfo info && info.Type == Type ? info.Guid : Guid.NewGuid();
                     byte[] data = null;
                     using (var writer = new BinaryWriter(new MemoryStream())) {
                         writer.Write(lodGroup.Name);
@@ -368,6 +417,7 @@ namespace WaveEditor.Content {
                         writer.Write(data);
                     }
 
+                    Logger.Log(MessageType.Info, $"Saved geometry to {meshFileName} successfully");
                     savedFiles.Add(meshFileName);
                 }
             } catch (Exception ex) {
@@ -376,6 +426,41 @@ namespace WaveEditor.Content {
             }
 
             return savedFiles;
+        }
+
+        public override void Load(string file) {
+            Debug.Assert(File.Exists(file));
+            Debug.Assert(Path.GetExtension(file).ToLower() == AssetFileExtension);
+
+            try {
+                byte[] data = null;
+                using (var reader = new BinaryReader(File.Open(file, FileMode.Open, FileAccess.Read))) {
+                    ReadAssetFileHeader(reader);
+                    ImportSettings.FromBinary(reader);
+                    int dataLength = reader.ReadInt32();
+                    Debug.Assert(dataLength > 0);
+                    data = reader.ReadBytes(dataLength);
+                }
+
+                Debug.Assert(data.Length > 0);
+
+                using(var reader = new BinaryReader(new MemoryStream(data))) {
+                    LODGroup lodGroup = new LODGroup();
+                    lodGroup.Name = reader.ReadString();
+                    var lodCount = reader.ReadInt32();
+
+                    for(int i = 0; i < lodCount; ++i) {
+                        lodGroup.LODs.Add(BinaryToLOD(reader));
+                    }
+
+                    _lodGroups.Clear();
+                    _lodGroups.Add(lodGroup);
+                }
+
+            } catch (Exception ex) {
+                Debug.WriteLine(ex.Message);
+                Logger.Log(MessageType.Error, $"Failed to load geometry asset from file: {file}");
+            }
         }
 
         private void LODToBinary(MeshLOD lod, BinaryWriter writer, out byte[] hash) {
@@ -400,26 +485,52 @@ namespace WaveEditor.Content {
             hash = ContentHelper.ComputeHash(buffer, (int)meshDataBegin, (int)meshDataSize);
         }
 
+        private MeshLOD BinaryToLOD(BinaryReader reader) {
+            var lod = new MeshLOD();
+            lod.Name = reader.ReadString();
+            lod.LodThreshold = reader.ReadSingle();
+            var meshCount = reader.ReadInt32();
+
+            for(int i = 0; i < meshCount; ++i) {
+                var mesh = new Mesh() {
+                    VertexSize = reader.ReadInt32(),
+                    VertexCount = reader.ReadInt32(),
+                    IndexSize = reader.ReadInt32(),
+                    IndexCount = reader.ReadInt32()
+                };
+
+                mesh.Vertices = reader.ReadBytes(mesh.VertexSize * mesh.VertexCount);
+                mesh.Indices = reader.ReadBytes(mesh.IndexSize * mesh.IndexCount);
+
+                lod.Meshes.Add(mesh);
+            }
+
+            return lod;
+        }
+
         private byte[] GenerateIcon(MeshLOD lod) {
-            var width = 90 * 4;
+            var width = ContentInfo.IconWidth * 4;
+
+            using var memStream = new MemoryStream();
             BitmapSource bmp = null;
 
+            // NOTE: it's not good practive to use a WPF control (view) in the ViewModel.
+            //       But we need to make an exception for this case, for as long as we don't 
+            //       have a graphics renderer that we can use for screenshots.
             // force executing on UI thread
             Application.Current.Dispatcher.Invoke(() => {
                 bmp = Editors.GeometryView.RenderToBitmap(new Editors.MeshRenderer(lod, null), width, width);
                 bmp = new TransformedBitmap(bmp, new ScaleTransform(0.25, 0.25, 0.5, 0.5));
+
+                memStream.SetLength(0); // clear stream
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bmp));
+                encoder.Save(memStream);
             });
-
-            using var memStream = new MemoryStream();
-            memStream.SetLength(0); // clear stream
-
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bmp));
-            encoder.Save(memStream);
 
             return memStream.ToArray(); // get all bytes
         }
-
 
         public Geometry() : base(AssetType.Mesh) {
         }

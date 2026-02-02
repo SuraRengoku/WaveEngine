@@ -17,13 +17,18 @@ Key goals:
 - Toolchain and editor integration  
 - Research-oriented graphics features  
 
+## Preview
+
 ![WaveEngine Preview](./docs/images/Preview.png)
 
 ---
 ## Features
 ✅ Core engine framework  
+✅ Content Browser
+![WaveEngine ContentBrowser](./docs/images/ContentBroswer.png)
 ✅ Window and input system  
 ✅ Rendering context abstraction (D3D12 / Vulkan)  
+![WaveEngine Rendering](./docs/images/RenderingInWindows.png)
 ⏳ Material and shader system  
 ⏳ PBR rendering pipeline  
 ⏳ Real-time shadow mapping  

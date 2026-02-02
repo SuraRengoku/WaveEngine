@@ -127,12 +127,12 @@ void update(float dt) {
 #include <atlsafe.h>
 
 /*
-     C++ Engine         ¡ú           C# Editor
-   script_names()       ¡ú      string[] scriptNames
-	    ¡ý                               ¡ü
-CComSafeArray<BSTR>     ¡ú          LPSAFEARRAY
-	    ¡ý                               ¡ü
-     Detach()           ¡ú         Marshal.Copy()
+     C++ Engine         =>           C# Editor
+   script_names()       =>      string[] scriptNames
+	    ||                               ||
+CComSafeArray<BSTR>     =>          LPSAFEARRAY
+	    ||                               ||
+     Detach()           =>         Marshal.Copy()
 */
 
 extern "C" __declspec(dllexport)

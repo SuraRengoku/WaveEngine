@@ -88,14 +88,14 @@ mesh create_plane(const primitive_init_info& info, u32 horizontal_index = axis::
 	m.raw_indices.reserve(num_indices);
 
 	const u32 row_length{ horizontal_count + 1 }; // number of vertices in a row
-	for (u32 j{ 0 }; j < vertical_count; ++j) { /* ¡ý */
+	for (u32 j{ 0 }; j < vertical_count; ++j) { /* ï¿½ï¿½ */
 		u32 k{ 0 };
 		for (u32 i{ k }; i < horizontal_count; ++i) { /* -> */
 			/* counter clockwise vertices permutation
 			 *  a <------- c
-			 *	|		   ¡ü
+			 *	|		   ï¿½ï¿½
 			 *	|		   |
-			 *	¡ý		   |
+			 *	ï¿½ï¿½		   |
 			 *	b -------> d
 			 */
 			const u32 index[4]{

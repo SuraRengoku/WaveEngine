@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -55,10 +55,12 @@ namespace WaveEditor.Content {
         // Usage:
         // Update: if the model has been changed
         // Derepetition: avoid same content with same Guid but different hash code
-        public byte[] Hash { get; protected set; } 
+        public byte[] Hash { get; protected set; }
 
-         
+
+        public abstract void Import(string file);
         public abstract IEnumerable<string> Save(string file);
+        public abstract void Load(string file);
 
         private static AssetInfo GetAssetInfo(BinaryReader reader) {
             reader.BaseStream.Position = 0;
@@ -78,6 +80,9 @@ namespace WaveEditor.Content {
 
             return info;
         }
+
+        public static AssetInfo TryGetAssetInfo(string file) =>
+            File.Exists(file) && Path.GetExtension(file) == AssetFileExtension ? AssetRegistry.GetAssetInfo(file) ?? GetAssetInfo(file) : null;
 
         public static AssetInfo GetAssetInfo(string file) {
             Debug.Assert(File.Exists(file) && Path.GetExtension(file) == AssetFileExtension);

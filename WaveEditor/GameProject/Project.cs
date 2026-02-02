@@ -24,13 +24,16 @@ namespace WaveEditor.GameProject {
         public static string Extension => ".wave";
         [DataMember]
         public string Name { get; private set; } = "New Project";
+        
+        // Gets the root folder that contains the current project.
         [DataMember]
         public string Path { get; private set; }
 
+        // Gets the full path of the current Wave project file, including its file name and extensions.
         public string FullPath => $@"{Path}{Name}{Extension}";
         public string Solution => $@"{Path}{Name}.sln";
-
         public string ContentPath => $@"{Path}Content\";
+        public string TempFolder => $@"{Path}.Wave\Temp\";
 
         private int _buildConfig;
         [DataMember]
@@ -172,6 +175,13 @@ namespace WaveEditor.GameProject {
             VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
             Logger.Clear();
+            DeleteTempFolder();
+        }
+
+        private void DeleteTempFolder() {
+            if(Directory.Exists(TempFolder)) {
+                Directory.Delete(TempFolder, true);
+            }
         }
 
         public static void Save(Project project) {
