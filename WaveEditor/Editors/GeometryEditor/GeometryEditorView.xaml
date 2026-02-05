@@ -6,7 +6,7 @@
              xmlns:ed="clr-namespace:WaveEditor.Editors"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=ed:GeometryEditor}"
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="300" d:DesignWidth="600">
     <UserControl.Resources>
         <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource LightTextBlockStyle}"/>
     </UserControl.Resources>
@@ -49,6 +49,7 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
+            <ed:GeometryDetailsView Tag="{Binding ElementName=geometryView}"/>
             <GridSplitter HorizontalAlignment="Right" Width="5" 
                           Background="{StaticResource Editor.Window.GrayBrush1}"
                           VerticalAlignment="Stretch"/>

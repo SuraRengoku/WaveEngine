@@ -70,6 +70,17 @@ namespace WaveEditor.Content {
             }
         }
 
+        private string _name;
+        public string Name {
+            get => _name;
+            set {
+                if (_name != value) {
+                    _name = value;
+                    OnPropertyChanged(nameof(Name));
+                }
+            }
+        }
+
         public byte[] Vertices { get; set; }
 
         public byte[] Indices { get; set; }
@@ -279,7 +290,7 @@ namespace WaveEditor.Content {
                 meshName = $"mesh_{ContentHelper.GetRandomString()}";
             }
 
-            var mesh = new Mesh();
+            var mesh = new Mesh() { Name = meshName };
             var lodId = reader.ReadInt32();
             mesh.VertexSize = reader.ReadInt32();
             mesh.VertexCount = reader.ReadInt32();
@@ -388,9 +399,10 @@ namespace WaveEditor.Content {
                 foreach(var lodGroup in _lodGroups) {
                     Debug.Assert(lodGroup.LODs.Any());
                     // use the name of most detailed LOD for file name
-                    var meshFileName = ContentHelper.SanitizeFileName(_lodGroups.Count > 1 ?
-                        path + fileName + "_" + lodGroup.LODs[0].Name + AssetFileExtension :
-                        path + fileName + AssetFileExtension);
+                    var meshFileName = ContentHelper.SanitizeFileName(
+                        path + fileName + ((_lodGroups.Count > 1) ? 
+                        "_" + ((lodGroup.LODs.Count > 1) ? lodGroup.Name : lodGroup.LODs[0].Name) : 
+                        string.Empty)) + AssetFileExtension;
                     // make a different Guid for each new asset file,
                     // but if a geometry asset file with the same name already exists then we use its guid instead.
                     Guid = TryGetAssetInfo(meshFileName) is AssetInfo info && info.Type == Type ? info.Guid : Guid.NewGuid();
@@ -471,6 +483,7 @@ namespace WaveEditor.Content {
             var meshDataBegin = writer.BaseStream.Position;
             
             foreach (var mesh in lod.Meshes) {
+                writer.Write(mesh.Name);
                 writer.Write(mesh.VertexSize);
                 writer.Write(mesh.VertexCount);
                 writer.Write(mesh.IndexSize);
@@ -493,6 +506,7 @@ namespace WaveEditor.Content {
 
             for(int i = 0; i < meshCount; ++i) {
                 var mesh = new Mesh() {
+                    Name = reader.ReadString(),
                     VertexSize = reader.ReadInt32(),
                     VertexCount = reader.ReadInt32(),
                     IndexSize = reader.ReadInt32(),

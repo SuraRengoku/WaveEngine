@@ -85,78 +85,108 @@ void fbx_context::get_scene(FbxNode* root /*= nullptr*/) {
 		FbxNode* node{ root->GetChild(i) };
 		if (!node)	continue;
 
-		if (node->GetMesh()) {
+		lod_group lod{};
+		get_meshes(node, lod.meshes, 0, -1.0f);
+		if (lod.meshes.size()) {
 
-			lod_group lod{};
-			get_mesh(node, lod.meshes);
-			if (lod.meshes.size()) {
-
-				lod.name = lod.meshes[0].name;
-				_scene->lod_groups.emplace_back(lod);
-			}
-		} else if (node->GetLodGroup()) {
-
-			get_lod_group(node);
-		} else {
-			// See if there's a mesh somewhere further down the hierarchy.
-			 get_scene(node);
+			lod.name = lod.meshes[0].name;
+			_scene->lod_groups.emplace_back(lod);
 		}
 	}
 }
 
-void fbx_context::get_mesh(FbxNode* node, UTL::vector<mesh>& meshes) {
-	assert(node);
+void fbx_context::get_meshes(FbxNode* node, UTL::vector<mesh>& meshes, u32 lod_id, f32 lod_threshold) {
+	assert(node && lod_id != u32_invalid_id);
+	bool is_lod_group{ false };
 
-	if (FbxMesh * fbx_mesh{ node->GetMesh() }) {
-		if (fbx_mesh->RemoveBadPolygons() < 0) return;
-
-		// Triangulate the mesh if needed.
-		FbxGeometryConverter gc{ _fbx_manager };
-		fbx_mesh = static_cast<FbxMesh*>(gc.Triangulate(fbx_mesh, true));
-		if (!fbx_mesh || fbx_mesh->RemoveBadPolygons() < 0) return;
-
-		mesh m;
-		m.lod_id = static_cast<u32>(meshes.size());
-		m.lod_threshold = -1.0f; // no lod
-		m.name = (node->GetName()[0] != '\0') ? node->GetName() : fbx_mesh->GetName();
-
-		if (get_mesh_data(fbx_mesh, m)) {
-
-			meshes.emplace_back(m);
+	if (const s32 num_attributes{ node->GetNodeAttributeCount() }) {
+		for (s32 i{0}; i < num_attributes; ++i) {
+			FbxNodeAttribute* attribute{ node->GetNodeAttributeByIndex(i) };
+			const FbxNodeAttribute::EType attribute_type{ attribute->GetAttributeType() };
+			if (attribute_type == FbxNodeAttribute::eMesh) {
+				get_mesh(attribute, meshes, lod_id, lod_threshold);
+			} else if (attribute_type == FbxNodeAttribute::eLODGroup) {
+				get_lod_group(attribute);
+				is_lod_group = true;
+			}
 		}
+	}
+
+	if (!is_lod_group) {
+		if (const s32 num_children{node->GetChildCount()}) {
+			for (s32 i{0}; i < num_children; ++i) {
+				get_meshes(node->GetChild(i), meshes, lod_id, lod_threshold);
+			}
+		}
+	}
+}
+
+void fbx_context::get_mesh(FbxNodeAttribute* attribute, UTL::vector<mesh>& meshes, u32 lod_id, f32 lod_threshold) {
+	assert(attribute);
+
+	FbxMesh* fbx_mesh{ static_cast<FbxMesh*>(attribute) };
+	if (fbx_mesh->RemoveBadPolygons() < 0) return;
+
+	// Triangulate the mesh if needed.
+	FbxGeometryConverter gc{ _fbx_manager };
+	fbx_mesh = static_cast<FbxMesh*>(gc.Triangulate(fbx_mesh, true));
+	if (!fbx_mesh || fbx_mesh->RemoveBadPolygons() < 0) return;
+
+	FbxNode* const node{ fbx_mesh->GetNode() };
+
+	mesh m;
+	m.lod_id = lod_id;
+	m.lod_threshold = lod_threshold;
+	m.name = (node->GetName()[0] != '\0') ? node->GetName() : fbx_mesh->GetName();
+
+	if (get_mesh_data(fbx_mesh, m)) {
+		meshes.emplace_back(m);
 	}
 
 	// See if there's a mesh somewhere further down the hierarchy.
-	get_scene(node);
+	//get_scene(node);
 }
 
-void fbx_context::get_lod_group(FbxNode* node) {
-	assert(node);
+void fbx_context::get_lod_group(FbxNodeAttribute* attribute) {
+	assert(attribute);
 
-	if (FbxLODGroup * lod_grp{ node->GetLodGroup() }) {
+	FbxLODGroup* lod_grp{ static_cast<FbxLODGroup*>(attribute) };
+	FbxNode* const node{ lod_grp->GetNode() };
+	lod_group lod{};
+	lod.name = (node->GetName()[0] != '\0') ? node->GetName() : lod_grp->GetName();
+	// NOTE: number of LODs is exclusive the base mesh (LOD0)
+	const s32 num_nodes{ node->GetChildCount() };
+	
+	assert(num_nodes > 0 && lod_grp->GetNumThresholds() == (num_nodes - 1));
+
+	for (s32 i{0}; i < num_nodes; ++i) {
 		
-		lod_group lod{};
-		lod.name = (node->GetName()[0] != '\0') ? node->GetName() : lod_grp->GetName();
-		// NOTE: number of LODs is exclusive the base mesh (LOD0)
-		const s32 num_lods{ lod_grp->GetNumThresholds() };
-		const s32 num_nodes{ node->GetChildCount() };
-
-		for (s32 i{0}; i < num_nodes; ++i) {
-			get_mesh(node->GetChild(i), lod.meshes);
-
-			if (lod.meshes.size() > 1 && lod.meshes.size() <= num_lods + 1 && lod.meshes.back().lod_threshold < 0.0f) {
-				FbxDistance threshold;
-				lod_grp->GetThreshold(static_cast<u32>(lod.meshes.size()) - 2, threshold);
-				lod.meshes.back().lod_threshold = threshold.value() * _scene_scale;
-			}
+		f32 lod_threshold{ -1.0f };
+		if (i > 0) {
+			FbxDistance threshold;
+			lod_grp->GetThreshold(i - 1, threshold);
+			lod_threshold = threshold.value() * _scene_scale;
 		}
 
-		if (lod.meshes.size()) _scene->lod_groups.emplace_back(lod);
+		get_meshes(node->GetChild(i), lod.meshes, static_cast<u32>(lod.meshes.size()), lod_threshold);
 	}
+
+	if (lod.meshes.size()) _scene->lod_groups.emplace_back(lod);
+	
 }
 
 bool fbx_context::get_mesh_data(FbxMesh* fbx_mesh, mesh& m) {
 	assert(fbx_mesh);
+
+	FbxNode* const node{ fbx_mesh->GetNode() };
+	FbxAMatrix geometricTransform;
+
+	geometricTransform.SetTRS(node->GetGeometricTranslation(FbxNode::eSourcePivot), 
+							  node->GetGeometricRotation(FbxNode::eSourcePivot), 
+							  node->GetGeometricScaling(FbxNode::eSourcePivot));
+
+	FbxAMatrix transform{ node->EvaluateGlobalTransform() * geometricTransform };
+	FbxAMatrix inverse_transpose{ transform.Inverse().Transpose() };
 
 	const s32 num_ploys{ fbx_mesh->GetPolygonCount() };
 	if (num_ploys <= 0) return false;
@@ -183,7 +213,7 @@ bool fbx_context::get_mesh_data(FbxMesh* fbx_mesh, mesh& m) {
 			m.raw_indices[i] = vertex_ref[v_idx];
 		} else {
 
-			FbxVector4 v = vertices[v_idx] * _scene_scale;
+			FbxVector4 v = transform.MultT(vertices[v_idx]) * _scene_scale;
 			m.raw_indices[i] = static_cast<u32>(m.positions.size());
 			vertex_ref[v_idx] = m.raw_indices[i];
 			m.positions.emplace_back(static_cast<f32>(v[0]), static_cast<f32>(v[1]), static_cast<f32>(v[2]));
@@ -222,7 +252,9 @@ bool fbx_context::get_mesh_data(FbxMesh* fbx_mesh, mesh& m) {
 			
 			const s32 num_normals{ normals.Size() };
 			for (s32 i{0}; i < num_normals; ++i) {
-				m.normals.emplace_back(static_cast<f32>(normals[i][0]), static_cast<f32>(normals[i][1]), static_cast<f32>(normals[i][2]));
+				FbxVector4 n{ inverse_transpose.MultT(normals[i]) };
+				n.Normalize();
+				m.normals.emplace_back(static_cast<f32>(n[0]), static_cast<f32>(n[1]), static_cast<f32>(n[2]));
 			}
 		} else {
 			// something went wrong with importing normals from FBX.
@@ -240,7 +272,11 @@ bool fbx_context::get_mesh_data(FbxMesh* fbx_mesh, mesh& m) {
 			for (s32 i{0} ; i < num_tangents; ++i) {
 
 				FbxVector4 t{ tangents->GetAt(i) };
-				m.tangents.emplace_back(static_cast<f32>(t[0]), static_cast<f32>(t[1]), static_cast<f32>(t[2]), static_cast<f32>(t[3]));
+				const f32 handedness{ static_cast<f32>(t[3]) };
+				t[3] = 0.0;
+				t.Normalize();
+				t = transform.MultT(t);
+				m.tangents.emplace_back(static_cast<f32>(t[0]), static_cast<f32>(t[1]), static_cast<f32>(t[2]), handedness);
 			}
 		} else {
 			// something went wrong with importing tangents from FBX

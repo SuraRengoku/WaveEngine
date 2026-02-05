@@ -34,9 +34,9 @@ void recalculate_normals(mesh& m) {
 
 /**
  * @param smoothing_angle angle between adjacent faces
- * smoothing_angle = 0��   �� totally smooth��blend normals for all vertices��
- * smoothing_angle = 90��  �� medium��inbetween angle > 90�� will not blend normals��
- * smoothing_angle = 180�� �� totally hard��each triangle have its own normal��
+ * smoothing_angle = 0°   -> totally smooth, blend normals for all vertices
+ * smoothing_angle = 90°  -> medium, in-between angle > 90° will not blend normals
+ * smoothing_angle = 180° -> totally hard, each triangle has its own normal
  */
 void process_normals(mesh& m, f32 smoothing_angle) {
 	const f32 cos_alpha{ XMScalarCos(pi - smoothing_angle * pi / 180.0f) }; 

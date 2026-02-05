@@ -14,7 +14,31 @@ using System.Windows;
 namespace WaveEditor.Editors {
 
     class MeshRendererVertexData : ViewModelBase {
-        private Brush _specular = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ff111111"));
+
+        private bool _isHighlighted;
+        public bool IsHighlighted {
+            get => _isHighlighted;
+            set {
+                if(_isHighlighted != value) {
+                    _isHighlighted = value;
+                    OnPropertyChanged(nameof(IsHighlighted));
+                    OnPropertyChanged(nameof(Diffuse));
+                }
+            }
+        }
+
+        private bool _isIsolated;
+        public bool IsIsolated {
+            get => _isIsolated;
+            set {
+                if(_isIsolated != value) {
+                    _isIsolated = value;
+                    OnPropertyChanged(nameof(IsIsolated));
+                }
+            }
+        }
+
+        private Brush _specular = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF111111"));
         public Brush Specular {
             get => _specular;
             set {
@@ -27,7 +51,7 @@ namespace WaveEditor.Editors {
 
         private Brush _diffuse = Brushes.White;
         public Brush Diffuse {
-            get => _diffuse;
+            get => _isHighlighted ? Brushes.Orange : _diffuse;
             set {
                 if (_diffuse != value) {
                     _diffuse = value;
@@ -36,7 +60,7 @@ namespace WaveEditor.Editors {
             }
         }
 
-
+        public string Name { get; set; }
         public Point3DCollection Positions { get; } = new Point3DCollection();
         public Vector3DCollection Normals { get; } = new Vector3DCollection();
         public Vector3DCollection Tangents { get; } = new Vector3DCollection();
@@ -87,7 +111,7 @@ namespace WaveEditor.Editors {
             new Point3D(CameraPosition.X + CameraTarget.X, CameraPosition.Y + CameraTarget.Y, CameraPosition.Z + CameraTarget.Z);
 
 
-        private Color _keyLight = (Color)ColorConverter.ConvertFromString("#ffaeaeae");
+        private Color _keyLight = (Color)ColorConverter.ConvertFromString("#FFAEAEAE");
         public Color KeyLight {
             get => _keyLight;
             set {
@@ -98,7 +122,7 @@ namespace WaveEditor.Editors {
             }
         }
 
-        private Color _skyLight = (Color)ColorConverter.ConvertFromString("#ff113b30");
+        private Color _skyLight = (Color)ColorConverter.ConvertFromString("#FF3299CC");
         public Color SkyLight {
             get => _skyLight;
             set {
@@ -109,7 +133,7 @@ namespace WaveEditor.Editors {
             }
         }
 
-        private Color _groundLight = (Color)ColorConverter.ConvertFromString("#ff3f2f1e");
+        private Color _groundLight = (Color)ColorConverter.ConvertFromString("#FF855E42");
         public Color GroundLight {
             get => _groundLight;
             set {
@@ -120,7 +144,7 @@ namespace WaveEditor.Editors {
             }
         }
 
-        private Color _ambientLight = (Color)ColorConverter.ConvertFromString("#ff3b3b3b");
+        private Color _ambientLight = (Color)ColorConverter.ConvertFromString("#FF3B3B3B");
         public Color AmbientLight {
             get => _ambientLight;
             set {
@@ -154,7 +178,7 @@ namespace WaveEditor.Editors {
             // unpack the packed normals
             var intervals = 2.0f / ((1 << 16) - 1); // normalizing interval = 2.0 / 65535
             foreach(var mesh in lod.Meshes) {
-                var vertexData = new MeshRendererVertexData();
+                var vertexData = new MeshRendererVertexData() { Name = mesh.Name };
                 // unpack all vertices
                 using (var reader = new BinaryReader(new MemoryStream(mesh.Vertices))) 
                     for(int i = 0; i < mesh.VertexCount; ++i) {
@@ -204,6 +228,14 @@ namespace WaveEditor.Editors {
             if(old != null) { // if we have old renderer, inherit camera settings
                 CameraTarget = old.CameraTarget;
                 CameraPosition = old.CameraPosition;
+
+                // NOTE: this is only for primitive meshes with multiple LODs, because they're displayed with texture
+                foreach(var mesh in old.Meshes) {
+                    mesh.IsHighlighted = false;
+                }
+                foreach(var mesh in Meshes) {
+                    mesh.Diffuse = old.Meshes.First().Diffuse;
+                }
             } else {
                 // compute bounding box dimensions
                 var width = maxX - minX;
