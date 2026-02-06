@@ -1,4 +1,5 @@
 #include "Geometry.h"
+#include "..\Utilities\IOStream.h"
 
 namespace WAVEENGINE::TOOLS {
 
@@ -132,24 +133,213 @@ void process_uvs(mesh& m) {
 	}
 }
 
-void pack_vertices_static(mesh& m) {
+u64 get_vertex_element_size(ELEMENTS::elements_type::type elements_type) {
+	using namespace ELEMENTS;
+	switch (elements_type)
+	{
+	case elements_type::static_normal:					return sizeof(static_normal);
+	case elements_type::static_normal_texture:			return sizeof(static_normal_texture);
+	case elements_type::static_color:					return sizeof(static_color);
+	case elements_type::skeletal:						return sizeof(skeletal);
+	case elements_type::skeletal_color:					return sizeof(skeletal_color);
+	case elements_type::skeletal_normal:				return sizeof(skeletal_normal);
+	case elements_type::skeletal_normal_color:			return sizeof(skeletal_normal_color);
+	case elements_type::skeletal_normal_texture:			return sizeof(skeletal_normal_texture);
+	case elements_type::skeletal_normal_texture_color:	return sizeof(skeletal_normal_texture_color);
+	}
+
+	return 0; // position only 
+}
+
+void pack_vertices(mesh& m) {
 	const u32 num_vertices{ static_cast<u32>(m.vertices.size()) };
 	assert(num_vertices);
-	m.pack_vertices_static.reserve(num_vertices);
+
+	m.position_buffer.resize(sizeof(MATH::v3) * num_vertices);
+	MATH::v3* const position_buffer{ reinterpret_cast<MATH::v3* const>(m.position_buffer.data()) };
 
 	for (u32 i{ 0 }; i < num_vertices; ++i) {
-		vertex& v{ m.vertices[i] };
-		const u8 signs{ static_cast<u8>((v.normal.z > 0.0f ? 1 : 0) << 1) };
-		const u16 normal_x{ static_cast<u16>(pack_float<16>(v.normal.x, -1.0f, 1.0f)) };
-		const u16 normal_y{ static_cast<u16>(pack_float<16>(v.normal.y, -1.0f, 1.0f)) };
-		// we can use x and y component to calculate the z component
-		// 
-		// TODO: tangents
-
-		m.pack_vertices_static.emplace_back(PACKED_VERTEX::vertex_static{
-			v.position, {0, 0, 0}, signs, {normal_x, normal_y}, {}, v.uv
-			});
+		position_buffer[i] = m.vertices[i].position;
 	}
+
+	struct u16v2 { u16 x, y; };
+	struct u8v3 { u8 x, y, z; };
+
+	UTL::vector<u8> t_signs(num_vertices);
+	UTL::vector<u16v2> normals(num_vertices);
+	UTL::vector<u16v2> tangents(num_vertices);
+	UTL::vector<u8v3>	joint_weights(num_vertices);
+
+	if (m.elements_type && ELEMENTS::elements_type::static_normal) {
+		// normals only 
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			t_signs[i] = static_cast<u8>((v.normal.z > 0.0f) << 1);
+			normals[i] = { static_cast<u16>(pack_float<16>(v.normal.x, -1.0f, 1.0f)), static_cast<u16>(pack_float<16>(v.normal.y, -1.0f, 1.0f)) };
+		}
+
+		if (m.elements_type && ELEMENTS::elements_type::static_normal_texture) {
+			// full T-space
+			for (u32 i{ 0 }; i < num_vertices; ++i) {
+				vertex& v{ m.vertices[i] };
+				t_signs[i] |= static_cast<u8>((v.tangent.w > 0.0f) && (v.tangent.z > 0.0f));
+				tangents[i] = { static_cast<u16>(pack_float<16>(v.tangent.x, -1.0f, 1.0f)), static_cast<u16>(pack_float<16>(v.tangent.y, -1.0f, 1.0f)) };
+			}
+		}
+	}
+
+	if (m.elements_type& ELEMENTS::elements_type::skeletal) {
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			// pack joint weights (from [0.0, 1.0[ to [0..255]
+			joint_weights[i] = {
+				static_cast<u8>(pack_unit_float<8>(v.joint_weight.x)),
+				static_cast<u8>(pack_unit_float<8>(v.joint_weight.y)),
+				static_cast<u8>(pack_unit_float<8>(v.joint_weight.z)),
+			};
+
+			// NOTE: w3 will be calculated in shader since joint weights sum to one(1).
+		}
+	}
+
+	m.element_buffer.resize(get_vertex_element_size(m.elements_type) * num_vertices);
+	using namespace ELEMENTS;
+
+	switch (m.elements_type)
+	{
+	case elements_type::static_color: {
+		static_color* const element_buffer{ reinterpret_cast<static_color* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			element_buffer[i] = { { v.red, v.green, v.blue },			// color
+								{} };								// pad
+		}
+	}
+	break;
+	case elements_type::static_normal: {
+		static_normal* const element_buffer{ reinterpret_cast<static_normal* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			element_buffer[i] = { { v.red, v.green, v.blue },			// color
+								t_signs[i],							// t_sign
+								{ normals[i].x, normals[i].y } };		// normal
+		}
+	}
+	break;
+	case elements_type::static_normal_texture: {
+		static_normal_texture* const element_buffer{ reinterpret_cast<static_normal_texture* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			element_buffer[i] = { { v.red, v.green, v.blue },			// color
+								t_signs[i],							// t_sign
+								{ normals[i].x, normals[i].y },			// normal
+								{ tangents[i].x, tangents[i].y },		// tangent
+								v.uv };								// uv
+		}
+	}
+	break;
+	case elements_type::skeletal: {
+		skeletal* const element_buffer{ reinterpret_cast<skeletal* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			const u16 indices[4]{ static_cast<u16>(v.joint_indices.x), static_cast<u16>(v.joint_indices.y),
+								static_cast<u16>(v.joint_indices.z), static_cast<u16>(v.joint_indices.w) };
+			element_buffer[i] = { { joint_weights[i].x, joint_weights[i].y, joint_weights[i].z },				// joint_weights
+								{},																		// pad
+								{ indices[0], indices[1], indices[2], indices[3] } };							// joint_indices
+		}
+	}
+	break;
+	case elements_type::skeletal_color: {
+		skeletal_color* const element_buffer{ reinterpret_cast<skeletal_color* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			const u16 indices[4]{ static_cast<u16>(v.joint_indices.x), static_cast<u16>(v.joint_indices.y),
+								static_cast<u16>(v.joint_indices.z), static_cast<u16>(v.joint_indices.w) };
+			element_buffer[i] = { { joint_weights[i].x, joint_weights[i].y, joint_weights[i].z },				// joint_weights
+								{},																		// pad
+								{ indices[0], indices[1], indices[2], indices[3] },							// joint_indices
+								{ v.red, v.green, v.blue },												// color
+								{} };																	// pad2
+		}
+	}
+	break;
+	case elements_type::skeletal_normal: {
+		skeletal_normal* const element_buffer{ reinterpret_cast<skeletal_normal* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			const u16 indices[4]{ static_cast<u16>(v.joint_indices.x), static_cast<u16>(v.joint_indices.y),
+								static_cast<u16>(v.joint_indices.z), static_cast<u16>(v.joint_indices.w) };
+			element_buffer[i] = { { joint_weights[i].x, joint_weights[i].y, joint_weights[i].z },				// joint_weights
+								t_signs[i],																// t_sign
+								{ indices[0], indices[1], indices[2], indices[3] },							// joint_indices
+								{ normals[i].x, normals[i].y } };											// normal
+		}
+	}
+	break;
+	case elements_type::skeletal_normal_color: {
+		skeletal_normal_color* const element_buffer{ reinterpret_cast<skeletal_normal_color* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			const u16 indices[4]{ static_cast<u16>(v.joint_indices.x), static_cast<u16>(v.joint_indices.y),
+								static_cast<u16>(v.joint_indices.z), static_cast<u16>(v.joint_indices.w) };
+			element_buffer[i] = { { joint_weights[i].x, joint_weights[i].y, joint_weights[i].z },				// joint_weights
+								t_signs[i],																// t_sign
+								{ indices[0], indices[1], indices[2], indices[3] },							// joint_indices
+								{ normals[i].x, normals[i].y },												// normal
+								{ v.red, v.green, v.blue },												// color
+								{} };																	// pad
+		}
+	}
+	break;
+	case elements_type::skeletal_normal_texture: {
+		skeletal_normal_texture* const element_buffer{ reinterpret_cast<skeletal_normal_texture* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			const u16 indices[4]{ static_cast<u16>(v.joint_indices.x), static_cast<u16>(v.joint_indices.y),
+								static_cast<u16>(v.joint_indices.z), static_cast<u16>(v.joint_indices.w) };
+			element_buffer[i] = { { joint_weights[i].x, joint_weights[i].y, joint_weights[i].z },				// joint_weights
+								t_signs[i],																// t_sign
+								{ indices[0], indices[1], indices[2], indices[3] },							// joint_indices
+								{ normals[i].x, normals[i].y },												// normal
+								{ tangents[i].x, tangents[i].y },											// tangent
+								v.uv };																	// uv
+		}
+	}
+	break;
+	case elements_type::skeletal_normal_texture_color: {
+		skeletal_normal_texture_color* const element_buffer{ reinterpret_cast<skeletal_normal_texture_color* const>(m.element_buffer.data()) };
+		for (u32 i{ 0 }; i < num_vertices; ++i) {
+			vertex& v{ m.vertices[i] };
+			const u16 indices[4]{ static_cast<u16>(v.joint_indices.x), static_cast<u16>(v.joint_indices.y),
+								static_cast<u16>(v.joint_indices.z), static_cast<u16>(v.joint_indices.w) };
+			element_buffer[i] = { { joint_weights[i].x, joint_weights[i].y, joint_weights[i].z },				// joint_weights
+								t_signs[i],																// t_sign
+								{ indices[0], indices[1], indices[2], indices[3] },							// joint_indices
+								{ normals[i].x, normals[i].y },												// normal
+								{ tangents[i].x, tangents[i].y },											// tangent
+								v.uv,																	// uv
+								{ v.red, v.green, v.blue },												// color
+								{} };																	// pad
+		}
+	}
+	break;
+	}
+}
+
+void determine_elements_type(mesh& m) {
+	using namespace ELEMENTS;
+	if (m.normals.size()) {
+		if (m.uv_sets.size() && m.uv_sets[0].size()) {
+			m.elements_type = elements_type::static_normal_texture;
+		} else {
+			m.elements_type = elements_type::static_normal;
+		}
+	} else if (m.colors.size()) {
+		m.elements_type = elements_type::static_color;
+	}
+
+	// TODO: we lack data for skeletal meshes. Expand for skeletal meshes.
 }
 
 void process_vertices(mesh& m, const geometry_import_settings& settings) {
@@ -164,12 +354,17 @@ void process_vertices(mesh& m, const geometry_import_settings& settings) {
 		process_uvs(m);
 	}
 
-	pack_vertices_static(m);
+	determine_elements_type(m);
+	pack_vertices(m);
 }
 
 u64 get_mesh_size(const mesh& m) {
 	const u64 num_vertices{ m.vertices.size() };
-	const u64 vertex_buffer_size{ sizeof(PACKED_VERTEX::vertex_static) * num_vertices };
+	const u64 position_buffer_size{ m.position_buffer.size() };
+	assert(position_buffer_size == sizeof(MATH::v3) * num_vertices);
+	const u64 element_buffer_size{ m.element_buffer.size() };
+	assert(element_buffer_size == get_vertex_element_size(m.elements_type) * num_vertices);
+
 	const u64 index_size{ (num_vertices) < (1 << 16) ? sizeof(u16) : sizeof(u32) };
 	const u64 index_buffer_size{ index_size * m.indices.size() };
 
@@ -178,13 +373,15 @@ u64 get_mesh_size(const mesh& m) {
 		su32 +					// mesh name length
 		m.name.size() +			// room for mesh name string
 		su32 +					// lod id
-		su32 +					// vertex size
+		su32 +					// vertex element size (vertex size excluding position element)
+		su32 +					// element type enumeration
 		su32 +					// number of vertices
 		su32 +					// index size (16 bit or 32 bit)
 		su32 +					// number of indices
-		sizeof(f32) +			// LOD threshold
-		vertex_buffer_size +	// buffer for vertices
-		index_buffer_size		// buffer for indices
+		sizeof(f32) +				// LOD threshold
+		position_buffer_size +		// room for vertex positions
+		element_buffer_size +		// room for vertex elements
+		index_buffer_size			// buffer for indices
 	};
 
 	return size;
@@ -215,50 +412,48 @@ u64 get_scene_size(const scene& scene) {
 	return size;
 }
 
-void pack_mesh_data(const mesh& mesh, u8* const buffer, u64& at) {
-	constexpr u64 su32{ sizeof(u32) };
-	u32 s{ 0 };
-
+void pack_mesh_data(const mesh& mesh, UTL::blobStreamWriter& blob) {
 	// mesh name length and itself
-	s = static_cast<u32>(mesh.name.size());
-	memcpy(&buffer[at], &s, su32); at += su32;
-	memcpy(&buffer[at], mesh.name.c_str(), s); at += s;
+	blob.write(static_cast<u32>(mesh.name.size()));
+	blob.write(mesh.name.c_str(), mesh.name.size());
 	// lod id
-	s = mesh.lod_id;
-	memcpy(&buffer[at], &s, su32); at += su32;
-	// vertex size
-	constexpr u32 vertex_size{ sizeof(PACKED_VERTEX::vertex_static) };
-	s = vertex_size;
-	memcpy(&buffer[at], &s, su32); at += su32;
+	blob.write(mesh.lod_id);
+	// vertex element size
+	const u32 element_size{ static_cast<u32>(get_vertex_element_size(mesh.elements_type)) };
+	blob.write(element_size);
+	// elements type enumeration
+	blob.write(static_cast<u32>(mesh.elements_type));
 	// number of vertices
 	const u32 num_vertices{ static_cast<u32>(mesh.vertices.size()) };
-	s = num_vertices;
-	memcpy(&buffer[at], &s, su32); at += su32;
+	blob.write(num_vertices);
 	// index size (16 bit or 32 bit)
-	const u32 index_size{ (num_vertices < (1 << 16)) ? static_cast<u32>(sizeof(u16)) : static_cast<u32>(sizeof(u32)) };
-	s = index_size;
-	memcpy(&buffer[at], &s, su32); at += su32;
+	const u32 index_size{ (num_vertices < (1 << 16)) ? sizeof(u16) : sizeof(u32) };
+	blob.write(index_size);
 	// number of indices
 	const u32 num_indices{ static_cast<u32>(mesh.indices.size()) };
-	s = num_indices;
-	memcpy(&buffer[at], &s, su32); at += su32;
+	blob.write(num_indices);
 	// LOD threshold
-	memcpy(&buffer[at], &mesh.lod_threshold, sizeof(f32)); at += sizeof(f32);
-	// vertices data
-	s = vertex_size * num_vertices;
-	memcpy(&buffer[at], mesh.pack_vertices_static.data(), s); at += s;
-	// indices data
-	s = index_size * num_indices;
-	void* data{ (void*)mesh.indices.data() };
+	blob.write(mesh.lod_threshold);
+	// position buffer
+	assert(mesh.position_buffer.size() == sizeof(MATH::v3) * num_vertices);
+	blob.write(mesh.position_buffer.data(), mesh.position_buffer.size());
+	// element buffer
+	assert(mesh.element_buffer.size() == element_size * num_vertices);
+	blob.write(mesh.element_buffer.data(), mesh.element_buffer.size());
+	// index data
+	const u32 index_buffer_size{ index_size * num_indices };
+	const u8* data{ reinterpret_cast<const u8*>(mesh.indices.data()) };
 	UTL::vector<u16> indices;
 
 	if (index_size == sizeof(u16)) {
 		indices.resize(num_indices);
-		for (u32 i{ 0 }; i < num_indices; ++i)
+		for (u32 i{ 0 }; i < num_indices; ++i) {
 			indices[i] = static_cast<u16>(mesh.indices[i]);
-		data = (void*)indices.data();
+		}
+
+		data = reinterpret_cast<const u8*>(indices.data());
 	}
-	memcpy(&buffer[at], data, s); at += s;
+	blob.write(data, index_buffer_size);
 }
 
 bool split_meshes_by_material(u32 material_index, const mesh& m, mesh& submesh) {
@@ -354,34 +549,27 @@ void pack_data(const scene& scene, scene_data& data) {
 #endif
 	assert(data.buffer);
 
-	u8* const buffer{ data.buffer };
-	u64 at{ 0 }; // writing pointer
-	u32 s{ 0 }; // tmp buffer
+	UTL::blobStreamWriter blob{ data.buffer, data.buffer_size };
 
 	// scene name length and name itself
-	s = static_cast<u32>(scene.name.size());
-	memcpy(&buffer[at], &s, su32); at += su32;
-	memcpy(&buffer[at], scene.name.c_str(), s); at += s;
+	blob.write(static_cast<u32>(scene.name.size()));
+	blob.write(scene.name.c_str(), scene.name.size());
 	// number of LODs
-	s = static_cast<u32>(scene.lod_groups.size());
-	memcpy(&buffer[at], &s, su32); at += su32;
+	blob.write(static_cast<u32>(scene.lod_groups.size()));
 
 	for (auto& lod : scene.lod_groups) {
 		// LOD name length and itself
-		s = static_cast<u32>(lod.name.size());
-		memcpy(&buffer[at], &s, su32); at += su32;
-		memcpy(&buffer[at], lod.name.c_str(), s); at += s;
+		blob.write(static_cast<u32>(lod.name.size()));
+		blob.write(lod.name.c_str(), lod.name.size());
 		// number of meshes
-		s = static_cast<u32>(lod.meshes.size());
-		memcpy(&buffer[at], &s, su32); at += su32;
+		blob.write(static_cast<u32>(lod.meshes.size()));
 
 		for (auto& mesh : lod.meshes) {
-			pack_mesh_data(mesh, buffer, at);
+			pack_mesh_data(mesh, blob);
 		}
 	}
 
-	assert(scene_size == at);
-
+	assert(scene_size == blob.offset());
 }
 
 }

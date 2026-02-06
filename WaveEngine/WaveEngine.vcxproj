@@ -82,6 +82,7 @@
     <ClInclude Include="Platform\Platform.h" />
     <ClInclude Include="Platform\PlatformTypes.h" />
     <ClInclude Include="Utilities\ArrayRef.h" />
+    <ClInclude Include="Utilities\IOStream.h" />
     <ClInclude Include="Utilities\Vector.h" />
     <ClInclude Include="Platform\Window.h" />
     <ClInclude Include="Utilities\FreeList.h" />

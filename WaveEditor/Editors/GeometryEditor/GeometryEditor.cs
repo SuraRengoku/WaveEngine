@@ -166,7 +166,6 @@ namespace WaveEditor.Editors {
         public MeshRenderer(MeshLOD lod, MeshRenderer old) {
             Debug.Assert(lod?.Meshes.Any() == true);
             // Calculate vertex size minus the position and normal vectors
-            var offset = lod.Meshes[0].VertexSize - 3 * sizeof(float) - sizeof(int) - 2 * sizeof(short); // skip position, reserved, t_sign and normal
 
             // set up camera
             double minX, minY, minZ;
@@ -180,36 +179,54 @@ namespace WaveEditor.Editors {
             foreach(var mesh in lod.Meshes) {
                 var vertexData = new MeshRendererVertexData() { Name = mesh.Name };
                 // unpack all vertices
-                using (var reader = new BinaryReader(new MemoryStream(mesh.Vertices))) 
-                    for(int i = 0; i < mesh.VertexCount; ++i) {
+                using (var reader = new BinaryReader(new MemoryStream(mesh.Positions)))
+                    for (int i = 0; i < mesh.VertexCount; ++i) {
                         // read positions
                         var posX = reader.ReadSingle(); // float: 4bytes
                         var posY = reader.ReadSingle(); // float: 4bytes
                         var posZ = reader.ReadSingle(); // float: 4bytes
-                        var signs = (reader.ReadUInt32() >> 24) & 0x000000ff; // 3 * u8 + u8 => int : 4bytes
                         vertexData.Positions.Add(new Point3D(posX, posY, posZ));
 
                         // update the bounding box
                         minX = Math.Min(minX, posX); maxX = Math.Max(maxX, posX);
                         minY = Math.Min(minY, posY); maxY = Math.Max(maxY, posY);
                         minZ = Math.Min(minZ, posZ); maxZ = Math.Max(maxZ, posZ);
-
-                        // read normals [0, 65535] -> [-1, 1]
-                        var nrmX = reader.ReadUInt16() * intervals - 1.0f; // u16: 2bytes
-                        var nrmY = reader.ReadUInt16() * intervals - 1.0f; // u16: 2bytes
-                        // calculate nrmZ by using x^2 + y^2 + z^2 = 1, sign of nrmZ determined by signs
-                        var nrmZ = Math.Sqrt(Math.Clamp(1f - (nrmX * nrmX + nrmY * nrmY), 0f, 1f)) * ((signs & 0x2) - 1f);
-                        var normal = new Vector3D(nrmX, nrmY, nrmZ); 
-                        normal.Normalize();
-                        vertexData.Normals.Add(normal);
-                        avgNormal += normal; 
-
-                        // read uvs (skip tangent and joint data)
-                        reader.BaseStream.Position += (offset - 2 * sizeof(float));
-                        var u = reader.ReadSingle(); // float: 4bytes
-                        var v = reader.ReadSingle(); // float: 4bytes
-                        vertexData.UVs.Add(new Point(u, v));
                     }
+
+                if (mesh.ElementsType.HasFlag(ElementsType.Normals)) {
+
+                    var tSpaceOffset = 0;
+                    if (mesh.ElementsType.HasFlag(ElementsType.Joints)) {
+                        tSpaceOffset = sizeof(short) * 4; // skip joint indices
+                    }
+                    // Read tangent space
+                    using(var reader = new BinaryReader(new MemoryStream(mesh.Elements)))
+                        for(int i = 0; i < mesh.VertexCount; ++i) {
+                            var signs = (reader.ReadUInt32() >> 24) & 0x000000ff; // 3 * u8 + u8 => int : 4bytes
+                            reader.BaseStream.Position += tSpaceOffset;
+                            // read normals [0, 65535] -> [-1, 1]
+                            var nrmX = reader.ReadUInt16() * intervals - 1.0f; // u16: 2bytes
+                            var nrmY = reader.ReadUInt16() * intervals - 1.0f; // u16: 2bytes
+                            // calculate nrmZ by using x^2 + y^2 + z^2 = 1, sign of nrmZ determined by signs
+                            var nrmZ = Math.Sqrt(Math.Clamp(1f - (nrmX * nrmX + nrmY * nrmY), 0f, 1f)) * ((signs & 0x2) - 1f);
+                            var normal = new Vector3D(nrmX, nrmY, nrmZ);
+                            normal.Normalize();
+                            vertexData.Normals.Add(normal);
+                            avgNormal += normal;
+
+                            // read uvs (skip tangent and joint data)
+                            if(mesh.ElementsType.HasFlag(ElementsType.TSpace)) {
+                                reader.BaseStream.Position += sizeof(short) * 2; // skip tangents
+                                var u = reader.ReadSingle(); // float: 4bytes
+                                var v = reader.ReadSingle(); // float: 4bytes
+                                vertexData.UVs.Add(new Point(u, v));
+                            }
+
+                            if(mesh.ElementsType.HasFlag(ElementsType.Joints) && mesh.ElementsType.HasFlag(ElementsType.Colors)) {
+                                reader.BaseStream.Position += 4; // skip colors
+                            }
+                        }
+                }
 
                 using (var reader = new BinaryReader(new MemoryStream(mesh.Indices)))
                     if (mesh.IndexSize == sizeof(short))

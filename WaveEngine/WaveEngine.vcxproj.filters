@@ -39,8 +39,22 @@
     <ClInclude Include="External\VulkanMemoryAllocator\include\vk_mem_alloc.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanHelpers.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanSurface.h" />
-    <ClInclude Include="Graphics\Vulkan\VulkanBase.h" />
     <ClInclude Include="Utilities\ArrayRef.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanBuffer.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanCommand.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanContext.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanFormat.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanFramebuffer.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanImage.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanMemory.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanPipeline.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanQueue.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanRenderPass.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanSampler.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanShader.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanSwapChain.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanSync.h" />
+    <ClInclude Include="Utilities\IOStream.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\Entity.cpp" />
@@ -66,6 +80,18 @@
     <ClCompile Include="Graphics\Vulkan\VulkanHelpers.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanSurface.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanResources.cpp" />
-    <ClCompile Include="Graphics\Vulkan\VulkanBase.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanBuffer.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanCommand.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanContext.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanFramebuffer.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanImage.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanMemory.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanPipeline.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanQueue.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanRenderPass.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanSampler.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanShader.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanSwapChain.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanSync.cpp" />
   </ItemGroup>
 </Project>
