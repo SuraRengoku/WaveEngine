@@ -8,7 +8,7 @@ namespace WAVEENGINE::UTL {
 //		Do not keep instance around as member variables.
 class blobStreamReader {
 public:
-	DISABLE_COPY_AND_MOVE(blobStreamReader);
+	DISABLE_COPY_AND_MOVE(blobStreamReader)
 	explicit blobStreamReader(const u8* buffer) : _buffer(buffer), _position(buffer) {
 		assert(buffer);
 	}
@@ -39,15 +39,15 @@ public:
 	[[nodiscard]] constexpr size_t offset() const { return _position - _buffer; }
 
 private:
-	const u8* const	_buffer;
-	const u8*		_position;
+	const u8* const	_buffer;		// start point(anchor), immutable after initialization, content in memory is also immutable when reading
+	const u8*		_position;	// movable pointer
 };
 
 // NOTE: (Important) This utility class is intended for local use only (i.e. within one function).
 //		Do not keep instance around as member variables.
 class blobStreamWriter {
 public:
-	DISABLE_COPY_AND_MOVE(blobStreamWriter);
+	DISABLE_COPY_AND_MOVE(blobStreamWriter)
 	explicit blobStreamWriter(u8* buffer, size_t buffer_size) : _buffer(buffer), _position(buffer), _buffer_size(buffer_size) {
 		assert(buffer && buffer_size);
 	}
@@ -85,9 +85,9 @@ public:
 	[[nodiscard]] constexpr size_t offset() const { return _position - _buffer; }
 
 private:
-	u8*	const	_buffer;
-	u8*			_position;
-	size_t		_buffer_size;
+	u8*	const	_buffer;			// start point(anchor), immutable after initialization
+	u8*			_position;		// movable pointer
+	size_t		_buffer_size;		// fixed after initialization
 };
 
 }

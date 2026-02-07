@@ -44,17 +44,21 @@ struct elements_type {
 	};
 };
 
+////////////////////////////////////////// Static Mesh //////////////////////////////////////////////
+// color (4 bytes)
 struct static_color {
 	u8			color[3];
-	u8			pad;
+	u8			pad;					// 1 byte padding for memory alignment
 };
 
+// color + normal (8 bytes)
 struct static_normal {
 	u8			color[3];	
 	u8			t_sign;				// bit 0: tangent handedness * (tangent.z sign), bit 1: normal.z sign(0 means -1, 1 means + 1).
 	u16			normal[2];
 };
 
+// color + normal + tangent + uv (20 bytes)
 struct static_normal_texture {
 	u8			color[3];
 	u8			t_sign;				// bit 0: tangent handedness * (tangent.z sign), bit 1: normal.z sign(0 means -1, 1 means + 1).
@@ -63,36 +67,42 @@ struct static_normal_texture {
 	MATH::v2		uv;
 }; 
 
+///////////////////////////////////////// Skeletal Mesh /////////////////////////////////////////////
+// basic skeleton (12 bytes)
 struct skeletal {
-	u8			joint_weights[3];		// normalized joint weights for up to 4 joints
-	u8			pad;
+	u8			joint_weights[3];		// normalized joint weights for up to 4 joints, (weight[3] = 1.0f - Sigma_i[0-2](weight[i]))
+	u8			pad;					// 1 byte padding for memory alignment
 	u16			joint_indices[4];
 };
 
+// basic skeleton + color (16 bytes)
 struct skeletal_color {
 	u8			joint_weights[3];		// normalized joint weights for up to 4 joints
-	u8			pad;
+	u8			pad;					// 1 byte padding for memory alignment
 	u16			joint_indices[4];
 	u8			color[3];
-	u8			pad2;
+	u8			pad2;				// 1 byte padding for memory alignment
 };
 
+// basic skeleton + normal (16 bytes)
 struct skeletal_normal {
 	u8			joint_weights[3];		// normalized joint weights for up to 4 joints
 	u8			t_sign;				// bit 0: tangent handedness * (tangent.z sign), bit 1: normal.z sign(0 means -1, 1 means + 1).
 	u16			joint_indices[4];
-	u16			normal[2];
+	u16			normal[2];			
 };
 
+// basic skeleton + normal + color (20 bytes)
 struct skeletal_normal_color {
 	u8			joint_weights[3];		// normalized joint weights for up to 4 joints
 	u8			t_sign;				// bit 0: tangent handedness * (tangent.z sign), bit 1: normal.z sign(0 means -1, 1 means + 1).
 	u16			joint_indices[4];
 	u16			normal[2];
 	u8			color[3];
-	u8			pad;
+	u8			pad;					// 1 byte padding for memory alignment
 };
 
+// basic skeleton + normal + tangent + uv (28 bytes)
 struct skeletal_normal_texture {
 	u8			joint_weights[3];		// normalized joint weights for up to 4 joints
 	u8			t_sign;				// bit 0: tangent handedness * (tangent.z sign), bit 1: normal.z sign(0 means -1, 1 means + 1).
@@ -102,6 +112,7 @@ struct skeletal_normal_texture {
 	MATH::v2		uv;
 };
 
+// basic skeleton + normal + tangent + uv + color (32 bytes)
 struct skeletal_normal_texture_color {
 	u8			joint_weights[3];		// normalized joint weights for up to 4 joints
 	u8			t_sign;				// bit 0: tangent handedness * (tangent.z sign), bit 1: normal.z sign(0 means -1, 1 means + 1).
@@ -110,13 +121,13 @@ struct skeletal_normal_texture_color {
 	u16			tangent[2];
 	MATH::v2		uv;
 	u8			color[3];
-	u8			pad;
+	u8			pad;					// 1 byte padding for memory alignment
 };
 
 }
 
 struct mesh {
-	// Initial data
+	//////////////////////////////// Initial data ////////////////////////////////////
 	UTL::vector<MATH::v3>						positions;
 	UTL::vector<MATH::v3>						normals;
 	UTL::vector<MATH::v4>						tangents;
@@ -128,11 +139,11 @@ struct mesh {
 
 	UTL::vector<u32>							raw_indices;
 
-	// Intermediate data
+	///////////////////////////// Intermediate data /////////////////////////////////
 	UTL::vector<vertex>						vertices;
 	UTL::vector<u32>							indices;
 
-	// Output data
+	///////////////////////////////// Output data ///////////////////////////////////
 	std::string								name;
 	ELEMENTS::elements_type::type				elements_type;
 	UTL::vector<u8>							position_buffer;

@@ -36,4 +36,77 @@ void vulkanFramebuffer::destroy() noexcept {
         _device = VK_NULL_HANDLE;
 	}
 }
+
+void vulkanFramebufferBuilder::destroy(UTL::vector<vulkanFramebuffer>& framebuffers) {
+	for (auto& framebuffer : framebuffers) {
+		framebuffer.destroy();
+	}
+	framebuffers.clear();
+}
+
+void vulkanFramebufferBuilder::destroy(vulkanFramebuffer& framebuffer) {
+	framebuffer.destroy();
+}
+
+bool vulkanFramebufferBuilder::build_for_swapchain(const deviceContext& dCtx,
+	const vulkanSwapChain& swapchain,
+	const vulkanRenderPass& renderPass,
+	const vulkanRenderTarget* depthTarget,
+	UTL::vector<vulkanFramebuffer>& outFramebuffers) {
+
+	destroy(outFramebuffers);
+	const u32 count = swapchain.imageCount();
+	outFramebuffers.resize(count);
+
+	for (u32 i{ 0 }; i < count; ++i) {
+		UTL::vector<VkImageView> attachments;
+		attachments.push_back(swapchain.imageView(i).handle());
+
+		if (depthTarget && depthTarget->hasDepth()) {
+			attachments.push_back(depthTarget->depthView().handle());
+		}
+
+		VKCall(outFramebuffers[i].create(dCtx,
+			renderPass.handle(),
+			static_cast<u32>(attachments.size()),
+			attachments.data(),
+			swapchain.width(),
+			swapchain.height(),
+			1),
+			"::VULKAN:ERROR Failed to create framebuffer\n");
+	}
+
+	return true;
+}
+
+bool vulkanFramebufferBuilder::build_for_target(const deviceContext& dCtx,
+	const vulkanRenderTarget& target,
+	const vulkanRenderPass& renderPass,
+	vulkanFramebuffer& outFramebuffer) {
+
+	destroy(outFramebuffer);
+
+	UTL::vector<VkImageView> attachments;
+	attachments.reserve(target.colorCount() + (target.hasDepth() ? 1 : 0));
+
+	for (u32 i{ 0 }; i < target.colorCount(); ++i) {
+		attachments.push_back(target.imageView(i).handle());
+	}
+
+	if (target.hasDepth()) {
+		attachments.push_back(target.depthView().handle());
+	}
+
+	VKCall(outFramebuffer.create(dCtx,
+		renderPass.handle(),
+		static_cast<u32>(attachments.size()),
+		attachments.data(),
+		target.width(),
+		target.height(),
+		1),
+		"::VULKAN:ERROR Failed to create framebuffer\n");
+
+	return true;
+}
+
 }

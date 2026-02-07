@@ -71,11 +71,11 @@ void vulkanSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilit
         // TODO get window handle in android
 #endif
 
-        VkExtent2D actualExtent = {width, height};
+        VkExtent2D actualExtent = { width, height };
         actualExtent.width = std::max(capabilities.minImageExtent.width,
             std::min(capabilities.maxImageExtent.width, actualExtent.width));
         actualExtent.height = std::max(capabilities.minImageExtent.height,
-    std::       min(capabilities.maxImageExtent.height, actualExtent.height));
+            std::min(capabilities.maxImageExtent.height, actualExtent.height));
         _extent = actualExtent;
     }
 }
@@ -161,100 +161,15 @@ void vulkanSwapChain::createImageViews() {
     }
 }
 
-void vulkanSwapChain::createDepthResources() {
-    VkFormat depthFormat = VKX::findDepthFormat(_physical_device);
-
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.format = depthFormat;
-    imageInfo.extent = { _extent.width, _extent.height, 1 };
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VKCall(_depth_image.create(_device, _physical_device, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-        "::VULKAN:ERROR Failed to create depth image\n");
-
-    VkImageSubresourceRange range{};
-    range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    range.baseMipLevel = 0;
-    range.levelCount = 1;
-    range.baseArrayLayer = 0;
-    range.layerCount = 1;
-
-    deviceContext dCtx{ _device, {}, {}, nullptr };
-    VkComponentMapping components{};
-    _depth_image_view.create(dCtx, _depth_image.image(), depthFormat, VK_IMAGE_VIEW_TYPE_2D, components, range);
-
-#ifdef _DEBUG
-    debug_output("::VULKAN:INFO Swap chain depth resources successfully created\n");
-    debug_output("  - Extent: %ux%ux%u\n", _extent.width, _extent.height, 1);
-    debug_output("  - Format: %s\n", VKX::formatToString(depthFormat));
-#endif
-}
-
-void vulkanSwapChain::destroyDepthResources() {
-#ifdef _DEBUG
-    if (_depth_image_view.isValid()) {
-        debug_output("::VULKAN:INFO Destroying depth resources\n");
+void vulkanSwapChain::destroyImageViews() {
+    for (auto& view : _color_image_views) {
+        view.destroy();
     }
-#endif
-
-    // TODO do we also have to destroy _depth_image
-    _depth_image_view.destroy();
-}
-
-void vulkanSwapChain::createFramebuffers(const VkRenderPass& renderPass, bool withDepth) {
-    destroyFramebuffers();
-
-    if (withDepth) {
-        createDepthResources();
-    }
-
-    _framebuffers.resize(_color_images.size());
-
-    deviceContext dCtx{ _device, {}, {}, nullptr };
-
-    for (u32 i{0}; i < _color_images.size(); ++i) {
-	    UTL::vector<VkImageView> attachments = { _color_image_views[i].getImageView() };
-        
-        if (withDepth) {
-            attachments.push_back(_depth_image_view);
-        }
-
-        VKCall(_framebuffers[i].create(dCtx, renderPass, static_cast<u32>(attachments.size()), attachments.data(), _extent.width, _extent.height, 1),
-            "::VULKAN:ERROR Failed to create framebuffer\n");
-    }
-
-#ifdef _DEBUG
-    debug_output("::VULKAN:INFO Swap chain framebuffers successfully created\n");
-    debug_output("  - Framebuffer Count: %u\n", static_cast<u32>(_framebuffers.size()));
-    debug_output("  - Dimensions: %ux%ux%u\n", _extent.width, _extent.height, 1);
-    debug_output("  - Attachments per Framebuffer: %u (%s)\n",
-        withDepth ? 2 : 1,
-        withDepth ? "Color + Depth" : "Color only");
-#endif
-}
-
-void vulkanSwapChain::destroyFramebuffers() {
-#ifdef _DEBUG
-    u32 count = static_cast<u32>(_framebuffers.size());
-    if (count > 0) {
-        debug_output("::VULKAN:INFO Destroying %u framebuffer(s)\n", count);
-    }
-#endif
-    for (auto& framebuffer : _framebuffers) {
-        framebuffer.destroy();
-    }
-    _framebuffers.clear();
+    _color_image_views.clear();
 }
 
 void vulkanSwapChain::recreate() {
+    release();
     create();
     // TODO recreate related resources
     // create Render Pass
@@ -268,8 +183,8 @@ void vulkanSwapChain::recreate() {
 void vulkanSwapChain::release() {
     vkDeviceWaitIdle(_device);
 
-    destroyFramebuffers();
-    destroyDepthResources();
+    destroyImageViews();
+    _color_images.clear();
 
     // TODO before clean swap chain we should clean all resources
     _color_image_views.clear();

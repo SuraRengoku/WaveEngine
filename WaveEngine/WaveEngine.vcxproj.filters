@@ -55,6 +55,7 @@
     <ClInclude Include="Graphics\Vulkan\VulkanSwapChain.h" />
     <ClInclude Include="Graphics\Vulkan\VulkanSync.h" />
     <ClInclude Include="Utilities\IOStream.h" />
+    <ClInclude Include="Graphics\Vulkan\VulkanRenderTarget.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\Entity.cpp" />
@@ -93,5 +94,6 @@
     <ClCompile Include="Graphics\Vulkan\VulkanShader.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanSwapChain.cpp" />
     <ClCompile Include="Graphics\Vulkan\VulkanSync.cpp" />
+    <ClCompile Include="Graphics\Vulkan\VulkanRenderTarget.cpp" />
   </ItemGroup>
 </Project>

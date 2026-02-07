@@ -133,7 +133,7 @@ void process_uvs(mesh& m) {
 	}
 }
 
-u64 get_vertex_element_size(ELEMENTS::elements_type::type elements_type) {
+constexpr u64 get_vertex_element_size(ELEMENTS::elements_type::type elements_type) {
 	using namespace ELEMENTS;
 	switch (elements_type)
 	{
@@ -191,7 +191,7 @@ void pack_vertices(mesh& m) {
 	if (m.elements_type& ELEMENTS::elements_type::skeletal) {
 		for (u32 i{ 0 }; i < num_vertices; ++i) {
 			vertex& v{ m.vertices[i] };
-			// pack joint weights (from [0.0, 1.0[ to [0..255]
+			// pack joint weights (from [0.0, 1.0] to [0..255])
 			joint_weights[i] = {
 				static_cast<u8>(pack_unit_float<8>(v.joint_weight.x)),
 				static_cast<u8>(pack_unit_float<8>(v.joint_weight.y)),

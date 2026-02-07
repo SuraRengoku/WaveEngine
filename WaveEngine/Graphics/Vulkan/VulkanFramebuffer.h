@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "VulkanCommonHeaders.h"
 #include "VulkanContext.h"
+#include "VulkanRenderTarget.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN {
 
@@ -48,6 +49,23 @@ public:
     void destroy() noexcept;
 
     bool isValid() const noexcept { return _framebuffer != VK_NULL_HANDLE; }
+};
+
+class vulkanFramebufferBuilder {
+public:
+    static bool build_for_swapchain(const deviceContext& dCtx,
+        const vulkanSwapChain& swapchain,
+        const vulkanRenderPass& renderPass,
+        const vulkanRenderTarget* depthTarget,
+        UTL::vector<vulkanFramebuffer>& outFramebuffers);
+
+    static bool build_for_target(const deviceContext& dCtx,
+        const vulkanRenderTarget& target,
+        const vulkanRenderPass& renderPass,
+        vulkanFramebuffer& outFramebuffer);
+
+    static void destroy(UTL::vector<vulkanFramebuffer>& framebuffers);
+    static void destroy(vulkanFramebuffer& framebuffer);
 };
 
 }

@@ -32,7 +32,7 @@ public:
     [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image)
     [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image)
 
-    [[nodiscard]] VkImage getImage() const {
+    [[nodiscard]] VkImage handle() const {
         assert(_image != VK_NULL_HANDLE);
         return _image;
     }
@@ -81,7 +81,7 @@ public:
     [[nodiscard]] VK_DEFINE_PTR_TYPE_OPERATOR(_image_view)
     [[nodiscard]] VK_DEFINE_ADDRESS_FUNCTION(_image_view)
 
-    [[nodiscard]] VkImageView getImageView() const {
+    [[nodiscard]] VkImageView handle() const {
         assert(_image_view != VK_NULL_HANDLE);
         return _image_view;
     }

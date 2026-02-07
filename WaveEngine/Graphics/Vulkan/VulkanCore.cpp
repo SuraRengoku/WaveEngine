@@ -5,6 +5,7 @@
 #include "VulkanCommand.h"
 #include "VulkanSync.h"
 #include "VulkanFramebuffer.h"
+#include "VulkanRenderTarget.h"
 
 namespace WAVEENGINE::GRAPHICS::VULKAN::CORE {
 
@@ -17,21 +18,21 @@ std::atomic<u32>					current_frame{ 0 };
 using surfaceCollection = UTL::freeList<vulkanSurface>;
 using swapchainCollection = UTL::freeList<vulkanSwapChain>;
 surfaceCollection					surfaces;
-swapchainCollection					swapchains;
+swapchainCollection				swapchains;
 
-vulkanDescriptorPool				immutable_pool{ descriptorPoolPolicy::NeverFree };				// never update
-vulkanDescriptorPool				per_scene_pool{ descriptorPoolPolicy::BulkReset };				// infrequently update
+vulkanDescriptorPool				immutable_pool{ descriptorPoolPolicy::NeverFree };			// never update
+vulkanDescriptorPool				per_scene_pool{ descriptorPoolPolicy::BulkReset };			// infrequently update
 vulkanDescriptorPool				per_frame_pool[frame_buffer_count] {
-	/* default descriptorPoolPolicy::PerFrameReset*/ };												// frequently update / reset the pool in each frame
-vulkanDescriptorPool				per_draw_pool{ descriptorPoolPolicy::Linear };					// most frequently update
+	/* default descriptorPoolPolicy::PerFrameReset*/ };										// frequently update / reset the pool in each frame
+vulkanDescriptorPool				per_draw_pool{ descriptorPoolPolicy::Linear };				// most frequently update
 vulkanDescriptorPool				deferred_pool{ descriptorPoolPolicy::DeferredFree };			// hot reload / deferred free
 
-u32									deferred_releases_flag[frame_buffer_count];
-std::mutex							deferred_releases_mutex{};
+u32								deferred_releases_flag[frame_buffer_count];
+std::mutex						deferred_releases_mutex{};
 
 vulkanCommandPool					graphics_command_pool[frame_buffer_count]{};					// main rendering
-vulkanCommandPool					transfer_command_pool{};										// transfer specified (resource load / transfer)
-vulkanCommandPool					transient_command_pool{};										// one time command (initialization)
+vulkanCommandPool					transfer_command_pool{};									// transfer specified (resource load / transfer)
+vulkanCommandPool					transient_command_pool{};									// one time command (initialization)
 
 vulkanCommandBuffer begin_single_time_commands(vulkanCommandPool& cmdPool) {
 	UTL::vector<vulkanCommandBuffer> cmdBuffers;
@@ -253,7 +254,7 @@ void destroy_uniform_buffers() {
 #endif
 }
 
-}
+} // ANONYMOUSE namespace
 
 namespace DETAIL {
 
@@ -264,7 +265,7 @@ void deferred_release() {
 	set_deferred_releases_flag();
 }
 
-}
+} // DETAIL namespace
 
 bool initialize() {
 	// check Vulkan Runtime
@@ -556,8 +557,11 @@ void remove_surface(surface_id id) {
 void resize_surface(surface_id id, u32 width, u32 height) {
 	// TODO
 	// wait GPU finish current frame
+	vkDeviceWaitIdle(vk_ctx.device());
 	// destroy old swap chain and framebuffers
+	swapchains[id].recreate();
 	// create new swap chain and framebuffers
+
 }
 
 u32 surface_width(surface_id id) {
@@ -694,4 +698,4 @@ void render_surface(surface_id id) {
 	current_frame.store((frame_idx + 1) % frame_buffer_count, std::memory_order_release);
 }
 
-}
+} // WAVEENGINE::GRAPHICS::VULKAN namespace

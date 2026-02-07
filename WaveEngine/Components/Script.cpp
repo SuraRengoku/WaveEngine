@@ -130,9 +130,9 @@ void update(float dt) {
      C++ Engine         =>           C# Editor
    script_names()       =>      string[] scriptNames
 	    ||                               ||
-CComSafeArray<BSTR>     =>          LPSAFEARRAY
+ CComSafeArray<BSTR>    =>           LPSAFEARRAY
 	    ||                               ||
-     Detach()           =>         Marshal.Copy()
+      Detach()          =>          Marshal.Copy()
 */
 
 extern "C" __declspec(dllexport)
